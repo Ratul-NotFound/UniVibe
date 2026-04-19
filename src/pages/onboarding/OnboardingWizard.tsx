@@ -162,12 +162,34 @@ const OnboardingWizard = () => {
         }
       }
 
-      await setDoc(doc(db, 'users', user.uid), {
-        ...formData,
-        usernameLower,
-        phoneNormalized,
-        isOnboarded: true,
-      }, { merge: true });
+      const saveProfile = async () => {
+        await setDoc(doc(db, 'users', user.uid), {
+          ...formData,
+          usernameLower,
+          phoneNormalized,
+          isOnboarded: true,
+        }, { merge: true });
+      };
+
+      try {
+        await saveProfile();
+      } catch (writeError: any) {
+        if (writeError?.code === 'permission-denied') {
+          await user.reload();
+          await user.getIdToken(true);
+
+          try {
+            await saveProfile();
+          } catch (retryWriteError: any) {
+            if (retryWriteError?.code === 'permission-denied') {
+              throw new Error('ONBOARDING_WRITE_BLOCKED');
+            }
+            throw retryWriteError;
+          }
+        } else {
+          throw writeError;
+        }
+      }
       if (uniqueChecksSkipped) {
         toast('Profile saved. Username/phone uniqueness check was skipped due to temporary permission limits.', { icon: '⚠️' });
       }
@@ -175,7 +197,9 @@ const OnboardingWizard = () => {
       navigate('/', { replace: true });
     } catch (error: any) {
       console.error(error);
-      if (error?.code === 'permission-denied') {
+      if (error?.message === 'ONBOARDING_WRITE_BLOCKED') {
+        toast.error('Unable to save onboarding due to Firestore permissions. Please deploy latest firestore rules, then try again.');
+      } else if (error?.code === 'permission-denied') {
         toast.error('Permission denied. Please sign out, sign in again, and try once more.');
       } else {
         toast.error(error.message || 'Error saving profile');
