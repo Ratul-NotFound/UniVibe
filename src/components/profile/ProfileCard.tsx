@@ -1,5 +1,5 @@
 import React from 'react';
-import { User as UserIcon, MapPin, GraduationCap, Briefcase } from 'lucide-react';
+import { User as UserIcon, MapPin, GraduationCap, Briefcase, Sparkles, CalendarDays } from 'lucide-react';
 import MatchScoreBadge from './MatchScoreBadge';
 
 interface ProfileCardProps {
@@ -8,6 +8,24 @@ interface ProfileCardProps {
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
+  const interestCount = Object.values(user.interests || {}).flat().length;
+
+  const getAge = (birthDate?: string) => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return null;
+
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const monthDiff = now.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+    return age > 0 ? age : null;
+  };
+
+  const age = getAge(user.birthDate);
+
   return (
     <div className="relative h-full w-full overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-zinc-900">
       {/* Background/Photo Area */}
@@ -51,10 +69,20 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
 
       {/* Content Area */}
       <div className="p-5 pb-8">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           {user.lookingFor && (
             <span className="mb-2 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary dark:bg-primary/20">
               Looking for {user.lookingFor}
+            </span>
+          )}
+          {age && (
+            <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <CalendarDays size={12} /> {age} yrs
+            </span>
+          )}
+          {user.gender && (
+            <span className="mb-2 inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {user.gender}
             </span>
           )}
         </div>
@@ -62,6 +90,30 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
         <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
           {user.bio || "No bio yet. Ask me something!"}
         </p>
+
+        {(user.currentCity || user.hometown || user.engagementType) && (
+          <div className="mt-3 space-y-1.5">
+            {(user.currentCity || user.hometown) && (
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                <MapPin size={13} />
+                <span>
+                  {user.currentCity ? `Lives in ${user.currentCity}` : ''}
+                  {user.currentCity && user.hometown ? ' • ' : ''}
+                  {user.hometown ? `From ${user.hometown}` : ''}
+                </span>
+              </div>
+            )}
+            {user.engagementType && user.engagementType !== 'None' && (
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                <Briefcase size={13} />
+                <span>
+                  {user.engagementType}
+                  {user.engagementDetails ? ` • ${user.engagementDetails}` : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {Object.values(user.interests || {})
@@ -75,11 +127,20 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
                 {interest}
               </span>
             ))}
-          {(Object.values(user.interests || {}).flat().length > 4) && (
+          {(interestCount > 4) && (
             <span className="px-1 text-[10px] font-bold text-zinc-400">
-              +{Object.values(user.interests || {}).flat().length - 4} more
+              +{interestCount - 4} more
             </span>
           )}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <Sparkles size={12} /> Profile vibe
+            </span>
+            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">{interestCount} interests</span>
+          </div>
         </div>
       </div>
     </div>

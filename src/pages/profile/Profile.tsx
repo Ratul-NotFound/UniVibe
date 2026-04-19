@@ -11,6 +11,7 @@ import ProfileCard from '@/components/profile/ProfileCard';
 import { useSafety } from '@/hooks/useSafety';
 import { toast } from 'react-hot-toast';
 import { DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR, INTEREST_CATEGORIES } from '@/lib/matchAlgorithm';
+import { getAvatarOptionsByGender } from '@/lib/avatarOptions';
 import { 
   User, 
   Shield, 
@@ -71,7 +72,10 @@ const Profile = () => {
     engagementType: userData?.engagementType || '',
     engagementDetails: userData?.engagementDetails || '',
     interests: (userData?.interests || {}) as Record<string, string[]>,
+    photoURL: userData?.photoURL || user?.photoURL || '',
   });
+
+  const avatarOptions = getAvatarOptionsByGender(profileForm.gender);
 
   const normalizeUsername = (value: string) => value.trim().toLowerCase();
   const normalizePhone = (value: string) => value.replace(/\D/g, '');
@@ -108,6 +112,7 @@ const Profile = () => {
       engagementType: userData?.engagementType || '',
       engagementDetails: userData?.engagementDetails || '',
       interests: (userData?.interests || {}) as Record<string, string[]>,
+      photoURL: userData?.photoURL || user?.photoURL || '',
     });
   }, [userData]);
 
@@ -264,6 +269,7 @@ const Profile = () => {
         engagementType: profileForm.engagementType,
         engagementDetails: profileForm.engagementDetails.trim(),
         interests: profileForm.interests,
+        photoURL: profileForm.photoURL,
       });
 
       toast.success('Profile details updated');
@@ -298,7 +304,7 @@ const Profile = () => {
     lookingFor: userData?.lookingFor || profileForm.lookingFor || '',
     bio: userData?.bio || profileForm.bio || '',
     interests: userData?.interests || profileForm.interests || {},
-    photoURL: userData?.photoURL || user?.photoURL || '',
+    photoURL: profileForm.photoURL || userData?.photoURL || user?.photoURL || '',
   };
 
   return (
@@ -357,7 +363,14 @@ const Profile = () => {
                 {GENDERS.map((g) => (
                   <button
                     key={g}
-                    onClick={() => setProfileForm((prev) => ({ ...prev, gender: g }))}
+                    onClick={() => {
+                      const nextAvatars = getAvatarOptionsByGender(g);
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        gender: g,
+                        photoURL: nextAvatars.includes(prev.photoURL) ? prev.photoURL : nextAvatars[0],
+                      }));
+                    }}
                     className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
                   >
                     {g}
@@ -365,6 +378,23 @@ const Profile = () => {
                 ))}
               </div>
             </div>
+
+            {profileForm.gender && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {avatarOptions.map((avatar) => (
+                    <button
+                      key={avatar}
+                      onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
+                      className={`overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                    >
+                      <img src={avatar} alt="avatar option" className="h-14 w-14 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department</label>
@@ -574,8 +604,13 @@ const Profile = () => {
         </section>
       </div>
 
-      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title="My Profile Preview">
-        <div className="h-[65vh]">
+      <Modal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        title="My Profile Preview"
+        maxWidthClass="max-w-3xl"
+      >
+        <div className="h-[75vh] md:h-[80vh]">
           <ProfileCard user={previewUser} />
         </div>
       </Modal>

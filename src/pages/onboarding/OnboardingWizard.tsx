@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { INTEREST_CATEGORIES, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
+import { getAvatarOptionsByGender } from '@/lib/avatarOptions';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -42,6 +43,8 @@ const OnboardingWizard = () => {
     interests: {} as Record<string, string[]>,
     photoURL: '',
   });
+
+  const avatarOptions = getAvatarOptionsByGender(formData.gender);
 
   const normalizeUsername = (value: string) => value.trim().toLowerCase();
   const normalizePhone = (value: string) => value.replace(/\D/g, '');
@@ -281,7 +284,13 @@ const OnboardingWizard = () => {
                       {GENDERS.map(g => (
                         <button
                           key={g}
-                          onClick={() => updateFormData({ gender: g })}
+                          onClick={() => {
+                            const nextAvatars = getAvatarOptionsByGender(g);
+                            updateFormData({
+                              gender: g,
+                              photoURL: nextAvatars.includes(formData.photoURL) ? formData.photoURL : nextAvatars[0],
+                            });
+                          }}
                           className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${formData.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
                         >
                           {g}
@@ -289,6 +298,23 @@ const OnboardingWizard = () => {
                       ))}
                     </div>
                   </div>
+
+                  {formData.gender && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Choose an avatar</label>
+                      <div className="grid grid-cols-4 gap-3">
+                        {avatarOptions.map((avatar) => (
+                          <button
+                            key={avatar}
+                            onClick={() => updateFormData({ photoURL: avatar })}
+                            className={`overflow-hidden rounded-full border-2 transition-all ${formData.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                          >
+                            <img src={avatar} alt="avatar option" className="h-14 w-14 object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Department</label>
@@ -398,6 +424,7 @@ const OnboardingWizard = () => {
                       || !formData.phone.trim()
                       || !formData.birthDate
                       || !formData.gender
+                      || !formData.photoURL
                       || !formData.department
                       || !formData.year
                       || !formData.lookingFor
