@@ -302,14 +302,14 @@ const OnboardingWizard = () => {
                   {formData.gender && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Choose an avatar</label>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
                         {avatarOptions.map((avatar) => (
                           <button
                             key={avatar}
                             onClick={() => updateFormData({ photoURL: avatar })}
-                            className={`overflow-hidden rounded-full border-2 transition-all ${formData.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${formData.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
                           >
-                            <img src={avatar} alt="avatar option" className="h-14 w-14 object-cover" />
+                            <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
                           </button>
                         ))}
                       </div>

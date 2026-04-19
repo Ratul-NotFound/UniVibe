@@ -3,6 +3,7 @@ const MALE_SEEDS = [
   'Adnan', 'Tahmid', 'Hasib', 'Shahriar', 'Rakib', 'Imran', 'Farhan', 'Rizwan', 'Saif', 'Nahid',
   'Tasin', 'Nabil', 'Shuvo', 'Rayhan', 'Afnan', 'Maruf', 'Shafin', 'Hridoy', 'Asif', 'Rasel',
   'Sajid', 'Noman', 'Tamim', 'Omi', 'Tawhid', 'Nafis', 'Wafi', 'Sohan', 'Rumman', 'Ayan',
+  'Mahfuz', 'Ridwan', 'Shakib', 'Rifat', 'Adib', 'Minhaj', 'Tan', 'Zayan',
 ];
 
 const FEMALE_SEEDS = [
@@ -10,6 +11,7 @@ const FEMALE_SEEDS = [
   'Nabila', 'Lamia', 'Raisa', 'Ishita', 'Priya', 'Mehnaz', 'Orpa', 'Tanjila', 'Noshin', 'Ruponti',
   'Sanzida', 'Afia', 'Sumaiya', 'Tuba', 'Tahsin', 'Labiba', 'Raiha', 'Arisha', 'Sinthia', 'Nidra',
   'Alifa', 'Tania', 'Mahira', 'Safa', 'Fabiha', 'Nisat', 'Iffat', 'Nazia', 'Rukaiya', 'Muntaha',
+  'Jui', 'Maliha', 'Nusaiba', 'Sabrina', 'Rhea', 'Arohi', 'Tuli', 'Rafina',
 ];
 
 const OTHER_SEEDS = [
@@ -17,21 +19,16 @@ const OTHER_SEEDS = [
   'Jude', 'Rin', 'Ari', 'Shawn', 'Ira', 'Koa', 'Milan', 'Avery', 'Robin', 'Reese',
   'Taylor', 'Sage', 'Rowan', 'Alex', 'Drew', 'Kai', 'Shai', 'Sam', 'Nuri', 'Eden',
   'Shiloh', 'Charlie', 'Mika', 'Indigo', 'Parker', 'Blair', 'Rumi', 'Cyan', 'Marlow', 'Phoenix',
+  'Ellis', 'Harper', 'Jordan', 'Casey', 'Remy', 'Rivera', 'Aster', 'Lennon',
 ];
 
-const buildInitialAvatars = (seeds: string[], backgroundType: string): string[] =>
-  seeds.map(
-    (seed) =>
-      `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(seed)}&fontWeight=700&fontSize=42&chars=1&backgroundType=${backgroundType}`
-  );
+const buildStyleSet = (style: 'micah' | 'lorelei' | 'adventurer-neutral', seeds: string[]): string[] =>
+  seeds.map((seed) => `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}`);
 
-export const MALE_AVATARS: string[] = buildInitialAvatars(MALE_SEEDS, 'gradientLinear');
-
-export const FEMALE_AVATARS: string[] = buildInitialAvatars(FEMALE_SEEDS, 'gradientRadial');
-
-export const OTHER_AVATARS: string[] = [
-  ...buildInitialAvatars(OTHER_SEEDS, 'solid'),
-];
+// Use stable style-only URLs to avoid broken links from unsupported params.
+export const MALE_AVATARS: string[] = buildStyleSet('micah', MALE_SEEDS);
+export const FEMALE_AVATARS: string[] = buildStyleSet('lorelei', FEMALE_SEEDS);
+export const OTHER_AVATARS: string[] = buildStyleSet('adventurer-neutral', OTHER_SEEDS);
 
 export const getAvatarOptionsByGender = (gender?: string): string[] => {
   if (gender === 'Male') return MALE_AVATARS;

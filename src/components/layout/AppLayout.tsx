@@ -1,5 +1,6 @@
 import React from 'react';
 import BottomNav from './BottomNav';
+import PwaInstallPrompt from './PwaInstallPrompt';
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -7,6 +8,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main className="flex-1 pb-24">
         {children}
       </main>
+      <PwaInstallPrompt />
       <BottomNav />
     </div>
   );

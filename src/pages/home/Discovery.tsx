@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Heart, X, Star, RotateCcw, Bell, Sparkles, User as UserIcon } from 'lucide-react';
+import { Heart, X, Star, RotateCcw, Bell, User as UserIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDiscovery } from '@/hooks/useDiscovery';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/context/AuthContext';
 import ProfileCard from '@/components/profile/ProfileCard';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { ProfileSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'react-hot-toast';
 
 const Discovery = () => {
   const { user, userData } = useAuth();
   const { profiles, loading, error, refresh, likeProfile, passProfile } = useDiscovery();
+  const { permission, enableNotifications, notifications, unreadCount, markAllAsRead, clearNotifications } = useNotifications();
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   React.useEffect(() => {
     if (!loading) {
@@ -33,26 +39,38 @@ const Discovery = () => {
 
   const currentProfile = profiles[currentIndex];
 
+  const handleNotificationClick = async () => {
+    setIsNotificationsOpen(true);
+    markAllAsRead();
+
+    if (permission === 'granted') return;
+
+    const status = await enableNotifications();
+    if (status === 'granted') toast.success('Notifications enabled!');
+  };
+
   const renderHeader = () => (
     <div className="sticky top-0 z-20 border-b border-zinc-100 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/85">
-      <div className="mx-auto flex w-full max-w-[460px] items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-white shadow-soft">
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Discover</p>
-            <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">UniVibe</h1>
-          </div>
-        </div>
+      <div className="flex w-full items-center justify-between">
+        <h1 className="text-2xl font-black tracking-tight text-pink-400">UniVibe</h1>
 
         <div className="flex items-center gap-2">
-          <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
+          <button
+            onClick={handleNotificationClick}
+            aria-label="Open notifications"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
             <Bell size={18} />
-            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-white bg-rose-500 dark:border-zinc-900" />
+            {(unreadCount > 0 || permission !== 'granted') && (
+              <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-white bg-rose-500 dark:border-zinc-900" />
+            )}
           </button>
 
-          <div className="h-10 w-10 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
+          <button
+            onClick={() => navigate('/profile')}
+            aria-label="Open profile"
+            className="h-10 w-10 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+          >
             {userData?.photoURL || user?.photoURL ? (
               <img src={userData?.photoURL || user?.photoURL || ''} alt="My avatar" className="h-full w-full object-cover" />
             ) : (
@@ -60,7 +78,7 @@ const Discovery = () => {
                 <UserIcon size={18} />
               </div>
             )}
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -87,7 +105,7 @@ const Discovery = () => {
     return (
       <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
         {renderHeader()}
-        <div className="mx-auto w-full max-w-[400px] p-6">
+        <div className="mx-auto w-full max-w-6xl p-6">
            <ProfileSkeleton />
            <div className="mt-12 flex justify-center gap-4">
               {[1,2,3,4].map(i => <div key={i} className="h-14 w-14 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-900" />)}
@@ -146,7 +164,7 @@ const Discovery = () => {
       {renderHeader()}
 
       <div className="relative flex flex-1 flex-col items-center justify-center p-4">
-        <div className="relative h-[550px] w-full max-w-[400px]">
+        <div className="relative h-[550px] w-full max-w-[400px] lg:h-[620px] lg:max-w-[460px]">
           <AnimatePresence>
             <motion.div
               key={currentProfile.id}
@@ -194,6 +212,43 @@ const Discovery = () => {
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        title="Notifications"
+      >
+        <div className="space-y-4">
+          {notifications.length > 0 ? (
+            <>
+              <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                {notifications.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border p-3 ${
+                      item.isRead
+                        ? 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60'
+                        : 'border-pink-200 bg-pink-50 dark:border-pink-900/60 dark:bg-pink-950/30'
+                    }`}
+                  >
+                    <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{item.body}</p>
+                    <p className="mt-2 text-[11px] text-zinc-400">{new Date(item.receivedAt).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={clearNotifications}>Clear All</Button>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800/60">
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">No notifications yet.</p>
+              <p className="mt-1 text-xs text-zinc-500">When someone sends an update, it will show up here.</p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

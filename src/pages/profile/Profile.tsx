@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import ProfileCard from '@/components/profile/ProfileCard';
 import { useSafety } from '@/hooks/useSafety';
+import { isPwaInstalled, requestPwaInstallPrompt } from '@/components/layout/PwaInstallPrompt';
 import { toast } from 'react-hot-toast';
 import { DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR, INTEREST_CATEGORIES } from '@/lib/matchAlgorithm';
 import { getAvatarOptionsByGender } from '@/lib/avatarOptions';
@@ -20,6 +21,7 @@ import {
   ChevronRight, 
   Lock,
   Bell,
+  Download,
   CheckCircle,
   Smartphone,
   Calendar,
@@ -296,6 +298,16 @@ const Profile = () => {
     setUnblockingUid(null);
   };
 
+  const handleInstallApp = () => {
+    if (isPwaInstalled()) {
+      toast.success('UniVibe is already installed on this device.');
+      return;
+    }
+
+    requestPwaInstallPrompt();
+    toast('Install prompt is ready. Check the banner at the bottom.');
+  };
+
   const previewUser = {
     ...userData,
     name: userData?.name || user?.displayName || 'You',
@@ -385,14 +397,14 @@ const Profile = () => {
             {profileForm.gender && (
               <div>
                 <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
                   {avatarOptions.map((avatar) => (
                     <button
                       key={avatar}
                       onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
-                      className={`overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
                     >
-                      <img src={avatar} alt="avatar option" className="h-14 w-14 object-cover" />
+                      <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
                     </button>
                   ))}
                 </div>
@@ -583,6 +595,16 @@ const Profile = () => {
               <div className="flex items-center gap-3">
                 <Bell size={20} className="text-zinc-500" />
                 <span className="text-sm font-bold">Notifications</span>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </button>
+            <button
+              onClick={handleInstallApp}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <Download size={20} className="text-zinc-500" />
+                <span className="text-sm font-bold">Install App</span>
               </div>
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
