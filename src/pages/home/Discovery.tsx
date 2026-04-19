@@ -10,6 +10,17 @@ import { toast } from 'react-hot-toast';
 const Discovery = () => {
   const { profiles, loading, error, refresh, likeProfile, passProfile } = useDiscovery();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false);
+
+  React.useEffect(() => {
+    if (!loading) {
+      setShowSlowLoadingHint(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setShowSlowLoadingHint(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Motion values for swipe gestures
   const x = useMotionValue(0);
@@ -49,6 +60,12 @@ const Discovery = () => {
            <div className="mt-12 flex justify-center gap-4">
               {[1,2,3,4].map(i => <div key={i} className="h-14 w-14 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-900" />)}
            </div>
+           {showSlowLoadingHint && (
+            <div className="mt-8 text-center">
+              <p className="text-xs text-zinc-500">Still loading profiles. You can refresh now.</p>
+              <Button onClick={() => refresh()} variant="outline" className="mt-3">Retry Loading</Button>
+            </div>
+           )}
         </div>
       </div>
     );

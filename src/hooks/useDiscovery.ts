@@ -27,6 +27,21 @@ export const useDiscovery = () => {
   const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
   const getChatId = (uidA: string, uidB: string) => `chat_${[uidA, uidB].sort().join('_')}`;
 
+  const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('DISCOVERY_TIMEOUT'));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
   const createMutualMatchIfNeeded = async (targetProfile: DiscoveryProfile) => {
     if (!user || !userData) return false;
 
@@ -97,7 +112,7 @@ export const useDiscovery = () => {
       // Also exclude users the current user has already swiped on.
       const swipesRef = collection(db, 'swipes');
       const swipesQ = query(swipesRef, where('fromUid', '==', user.uid), limit(300));
-      const swipeSnapshot = await getDocs(swipesQ);
+      const swipeSnapshot = await withTimeout(getDocs(swipesQ));
       swipeSnapshot.forEach((swipeDoc) => {
         const swipeData = swipeDoc.data();
         if (swipeData?.toUid) {
@@ -114,7 +129,7 @@ export const useDiscovery = () => {
         limit(50)
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await withTimeout(getDocs(q));
       const fetchedProfiles: DiscoveryProfile[] = [];
 
       querySnapshot.forEach((doc) => {
@@ -149,7 +164,11 @@ export const useDiscovery = () => {
       }
 
       console.error("Discovery error:", err);
-      setError(err.message);
+      if (err?.message === 'DISCOVERY_TIMEOUT') {
+        setError('Loading is taking too long. Please check your connection and tap Try Again.');
+      } else {
+        setError(err.message || 'Failed to load profiles. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

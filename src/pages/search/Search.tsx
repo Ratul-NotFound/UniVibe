@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search as SearchIcon, Filter, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { calculateMatchScore, DEPARTMENTS } from '@/lib/matchAlgorithm';
+import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
 import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,8 @@ const Search = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedLookingFor, setSelectedLookingFor] = useState('');
 
   const fetchBrowsingProfiles = async () => {
     if (!user || !userData) return;
@@ -56,8 +58,12 @@ const Search = () => {
 
       // Simple search client-side
       const filtered = fetched.filter(p => 
-        (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.department || '').toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        && (!selectedYear || p.year === selectedYear)
+        && (!selectedLookingFor || p.lookingFor === selectedLookingFor)
       );
 
       // Sort by match score
@@ -72,7 +78,7 @@ const Search = () => {
 
   useEffect(() => {
     fetchBrowsingProfiles();
-  }, [user, userData, selectedDept, searchTerm]);
+  }, [user, userData, selectedDept, selectedYear, selectedLookingFor, searchTerm]);
 
   return (
     <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">
@@ -116,6 +122,66 @@ const Search = () => {
             </button>
           ))}
         </div>
+
+        {isFilterOpen && (
+          <div className="space-y-4 rounded-card border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">Academic Year</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedYear('')}
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${!selectedYear ? 'bg-primary text-white' : 'bg-white text-zinc-500 dark:bg-zinc-800'}`}
+                >
+                  Any
+                </button>
+                {ACADEMIC_YEARS.map((year) => (
+                  <button
+                    key={year}
+                    onClick={() => setSelectedYear(year)}
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${selectedYear === year ? 'bg-primary text-white' : 'bg-white text-zinc-500 dark:bg-zinc-800'}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">Looking For</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedLookingFor('')}
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${!selectedLookingFor ? 'bg-primary text-white' : 'bg-white text-zinc-500 dark:bg-zinc-800'}`}
+                >
+                  Any
+                </button>
+                {LOOKING_FOR.map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setSelectedLookingFor(item.value)}
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${selectedLookingFor === item.value ? 'bg-primary text-white' : 'bg-white text-zinc-500 dark:bg-zinc-800'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedDept('');
+                  setSelectedYear('');
+                  setSelectedLookingFor('');
+                }}
+              >
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? (

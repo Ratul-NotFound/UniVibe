@@ -7,18 +7,22 @@ import { Search, MessageCircle, User, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 
 const ChatListItem = ({ match }: { match: any }) => {
-  const [otherUser, setOtherUser] = useState<any>(null);
+  const [otherUser, setOtherUser] = useState<any>(match.otherUser || null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOtherUser = async () => {
+      if (match.otherUser) {
+        setOtherUser(match.otherUser);
+        return;
+      }
       const userDoc = await getDoc(doc(db, 'users', match.otherUserId));
       if (userDoc.exists()) {
         setOtherUser(userDoc.data());
       }
     };
     fetchOtherUser();
-  }, [match.otherUserId]);
+  }, [match.otherUserId, match.otherUser]);
 
   if (!otherUser) return (
     <div className="flex animate-pulse items-center gap-4 px-6 py-4">
@@ -55,7 +59,7 @@ const ChatListItem = ({ match }: { match: any }) => {
           <span className="text-[10px] text-zinc-400">2m ago</span>
         </div>
         <p className="line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Click here to send a message...
+          {otherUser.username ? `@${otherUser.username}` : 'Click here to send a message...'}
         </p>
       </div>
     </div>
@@ -65,6 +69,16 @@ const ChatListItem = ({ match }: { match: any }) => {
 const ChatList = () => {
   const { matches, loading } = useMatches();
   const [searchTerm, setSearchTerm] = useState('');
+  const filteredMatches = matches.filter((match) => {
+    const other = match.otherUser || {};
+    const term = searchTerm.toLowerCase();
+    if (!term) return true;
+    return (
+      (other.name || '').toLowerCase().includes(term)
+      || (other.username || '').toLowerCase().includes(term)
+      || (other.department || '').toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
@@ -86,8 +100,8 @@ const ChatList = () => {
           <div className="space-y-4 p-6">
             {[1, 2, 3].map(i => <div key={i} className="h-20 animate-pulse rounded-card bg-zinc-50 dark:bg-zinc-900" />)}
           </div>
-        ) : matches.length > 0 ? (
-          matches.map(match => (
+        ) : filteredMatches.length > 0 ? (
+          filteredMatches.map(match => (
             <ChatListItem key={match.id} match={match} />
           ))
         ) : (

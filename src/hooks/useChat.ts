@@ -19,7 +19,10 @@ export const useChat = (chatId: string | undefined) => {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
 
   useEffect(() => {
-    if (!chatId || !user) return;
+    if (!chatId || !user) {
+      setLoading(false);
+      return;
+    }
 
     const chatRef = ref(rtdb, `chats/${chatId}/messages`);
     const typingRef = ref(rtdb, `chats/${chatId}/typing/${user.uid}`);
@@ -44,6 +47,8 @@ export const useChat = (chatId: string | undefined) => {
       if (data) {
         const otherId = Object.keys(data).find(id => id !== user.uid);
         setOtherUserTyping(otherId ? data[otherId] : false);
+      } else {
+        setOtherUserTyping(false);
       }
     });
 
@@ -66,7 +71,7 @@ export const useChat = (chatId: string | undefined) => {
       senderId: user.uid,
       content,
       type,
-      timestamp: serverTimestamp(),
+      timestamp: Date.now(),
       readBy: { [user.uid]: true }
     });
 

@@ -323,6 +323,9 @@ const Profile = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black">{userData?.name || 'Loading...'}</h1>
+            {userData?.username && (
+              <p className="text-xs font-semibold text-primary">@{userData.username}</p>
+            )}
             <p className="text-sm text-zinc-500">{userData?.department} • {userData?.year} Year</p>
             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
               <CheckCircle size={10} /> Verified Student
