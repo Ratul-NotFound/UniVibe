@@ -9,6 +9,16 @@ interface UserData {
   uid?: string;
   name?: string;
   email?: string;
+  username?: string;
+  usernameLower?: string;
+  phone?: string;
+  phoneNormalized?: string;
+  birthDate?: string;
+  gender?: string;
+  hometown?: string;
+  currentCity?: string;
+  engagementType?: string;
+  engagementDetails?: string;
   role?: 'admin' | 'moderator' | 'user' | string;
   department?: string;
   year?: string;
