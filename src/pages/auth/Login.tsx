@@ -1,0 +1,89 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { toast } from 'react-hot-toast';
+import { motion } from 'framer-motion';
+
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success('Logged in successfully!');
+      navigate('/');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-950">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md"
+      >
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-black tracking-tight text-primary">UniVibe</h1>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">Welcome back, student!</p>
+        </div>
+
+        <Card>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <Input
+              label="DIU Email"
+              type="email"
+              placeholder="name@diu.edu.bd"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <div className="space-y-1">
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-zinc-500 hover:text-primary dark:text-zinc-400"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" isLoading={loading}>
+              Sign In
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm">
+            <span className="text-zinc-600 dark:text-zinc-400">New to UniVibe? </span>
+            <Link to="/signup" className="font-semibold text-primary hover:underline">
+              Create an account
+            </Link>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+};
+
+export default Login;
