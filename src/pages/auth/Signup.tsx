@@ -47,9 +47,11 @@ const Signup = () => {
         name,
         email,
         isVerified: false,
+        isOnboarded: false,
         role: 'user',
         isBanned: false,
         dailyRequestCount: 0,
+        interests: {},
         createdAt: serverTimestamp(),
       });
 

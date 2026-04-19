@@ -1,11 +1,45 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onIdTokenChanged } from 'firebase/auth';
 import { auth, db, hasKeys } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, FirestoreError, onSnapshot } from 'firebase/firestore';
+
+interface UserData {
+  isOnboarded?: boolean;
+  isVerified?: boolean;
+  uid?: string;
+  name?: string;
+  email?: string;
+  role?: 'admin' | 'moderator' | 'user' | string;
+  department?: string;
+  year?: string;
+  lookingFor?: string;
+  bio?: string;
+  photoURL?: string;
+  blockedUsers?: string[];
+  isGhostMode?: boolean;
+  isProfileLocked?: boolean;
+  isBanned?: boolean;
+  dailyRequestCount?: number;
+  privacy?: {
+    phone?: 'private' | 'friends' | 'public' | string;
+    birthdate?: 'private' | 'public' | string;
+  };
+  interests?: Record<string, string[]>;
+}
+
+const hasCompletedOnboarding = (data: UserData | null): boolean => {
+  if (!data) return false;
+  if (data.isOnboarded === true) return true;
+
+  // Backward compatibility for older accounts that completed onboarding
+  // before isOnboarded was stored.
+  const interestCount = Object.values(data.interests || {}).flat().length;
+  return Boolean(data.department && data.year && data.lookingFor && interestCount >= 5);
+};
 
 interface AuthContextType {
   user: User | null;
-  userData: any | null;
+  userData: UserData | null;
   loading: boolean;
   isVerified: boolean;
   isOnboarded: boolean;
@@ -15,12 +49,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(hasKeys);
 
   useEffect(() => {
     if (!hasKeys) {
-      setLoading(false);
       return;
     }
 
@@ -38,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserData(userDoc.exists() ? userDoc.data() : null);
           setLoading(false);
         },
-        async (error: any) => {
+        async (error: FirestoreError) => {
           // Token claims can be stale right after verify/login; force one refresh and retry.
           if (!hasRetried && error?.code === 'permission-denied' && auth.currentUser) {
             try {
@@ -87,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userData,
     loading,
     isVerified: user?.emailVerified || false,
-    isOnboarded: !!userData?.isOnboarded,
+    isOnboarded: hasCompletedOnboarding(userData),
   };
 
   return (
