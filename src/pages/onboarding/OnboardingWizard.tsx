@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +12,16 @@ import { INTEREST_CATEGORIES, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 const OnboardingWizard = () => {
-  const { user } = useAuth();
+  const { user, isOnboarded } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isOnboarded) {
+      navigate('/', { replace: true });
+    }
+  }, [isOnboarded, navigate]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -52,15 +58,23 @@ const OnboardingWizard = () => {
     if (!user) return;
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
+      // Ensure latest auth claims (including email verification) are reflected before write.
+      await user.reload();
+      await user.getIdToken(true);
+
+      await setDoc(doc(db, 'users', user.uid), {
         ...formData,
         isOnboarded: true,
-      });
+      }, { merge: true });
       toast.success('Profile completed!');
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || 'Error saving profile');
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied. Verify your DIU email and try again.');
+      } else {
+        toast.error(error.message || 'Error saving profile');
+      }
     } finally {
       setLoading(false);
     }

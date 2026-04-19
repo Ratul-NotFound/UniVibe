@@ -77,10 +77,10 @@ export function calculateMatchScore(userA: any, userB: any): MatchResult {
 
   for (const [category, data] of Object.entries(INTEREST_CATEGORIES)) {
     const weight = data.weight;
-    const interestsA = new Set(userA.interests?.[category] || []);
-    const interestsB = new Set(userB.interests?.[category] || []);
+    const interestsA = new Set<string>((userA.interests?.[category] || []) as string[]);
+    const interestsB = new Set<string>((userB.interests?.[category] || []) as string[]);
     
-    const common = [...interestsA].filter(x => interestsB.has(x));
+    const common = [...interestsA].filter((x: string) => interestsB.has(x));
     const possibleCount = Math.max(interestsA.size, interestsB.size, 1);
     
     const catScore = (common.length / possibleCount) * weight * 100;

@@ -8,7 +8,7 @@ import { ProfileSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'react-hot-toast';
 
 const Discovery = () => {
-  const { profiles, loading, error, refresh, setProfiles } = useDiscovery();
+  const { profiles, loading, error, refresh, likeProfile, passProfile } = useDiscovery();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Motion values for swipe gestures
@@ -20,13 +20,20 @@ const Discovery = () => {
 
   const currentProfile = profiles[currentIndex];
 
-  const handleSwipe = (direction: 'left' | 'right') => {
+  const handleSwipe = async (direction: 'left' | 'right') => {
+    if (!currentProfile) return;
+
     if (direction === 'right') {
-      toast.success(`Liked ${currentProfile.name}!`, { icon: '❤️' });
-      // In production, we'd call a Firestore function to handle the like/match logic
+      const result = await likeProfile(currentProfile);
+      if (result.isMatch) {
+        toast.success(`It's a match with ${currentProfile.name}!`, { icon: '🎉' });
+      } else {
+        toast.success(`Liked ${currentProfile.name}!`, { icon: '❤️' });
+      }
     } else {
-      // toast('Skipped', { icon: '👎' });
+      await passProfile(currentProfile);
     }
+
     setCurrentIndex(prev => prev + 1);
   };
 
@@ -65,7 +72,14 @@ const Discovery = () => {
         </div>
         <h2 className="text-2xl font-black italic text-zinc-400">That's everyone for now!</h2>
         <p className="mt-2 text-zinc-500">Check back later or change your filters to see more people.</p>
-        <Button onClick={() => setCurrentIndex(0)} variant="outline" className="mt-8">
+        <Button
+          onClick={async () => {
+            await refresh();
+            setCurrentIndex(0);
+          }}
+          variant="outline"
+          className="mt-8"
+        >
           Refresh List
         </Button>
       </div>

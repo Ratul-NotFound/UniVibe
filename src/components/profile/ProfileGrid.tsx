@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MatchScoreBadge } from './MatchScoreBadge';
 
 interface ProfileGridProps {
   profiles: any[];

@@ -36,8 +36,15 @@ const Search = () => {
       const fetched: any[] = [];
 
       querySnapshot.forEach((doc) => {
-        if (doc.id !== user.uid) {
-          const data = doc.data();
+        const data = doc.data();
+        const isExcluded =
+          doc.id === user.uid ||
+          !!data.isProfileLocked ||
+          !!data.isBanned ||
+          (userData.blockedUsers || []).includes(doc.id) ||
+          (data.blockedUsers || []).includes(user.uid);
+
+        if (!isExcluded) {
           const matchResult = calculateMatchScore(userData, data);
           fetched.push({
             id: doc.id,
@@ -49,8 +56,8 @@ const Search = () => {
 
       // Simple search client-side
       const filtered = fetched.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.department.toLowerCase().includes(searchTerm.toLowerCase())
+        (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.department || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       // Sort by match score

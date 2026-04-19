@@ -1,14 +1,82 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 
+type DiscoveryProfile = {
+  id: string;
+  name?: string;
+  department?: string;
+  interests?: Record<string, string[]>;
+  blockedUsers?: string[];
+  isProfileLocked?: boolean;
+  isBanned?: boolean;
+  matchScore: number;
+  commonInterests?: string[];
+  [key: string]: any;
+};
+
 export const useDiscovery = () => {
   const { user, userData } = useAuth();
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<DiscoveryProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const getSwipeDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
+  const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
+  const getChatId = (uidA: string, uidB: string) => `chat_${[uidA, uidB].sort().join('_')}`;
+
+  const createMutualMatchIfNeeded = async (targetProfile: DiscoveryProfile) => {
+    if (!user || !userData) return false;
+
+    const reciprocalSwipeRef = doc(db, 'swipes', getSwipeDocId(targetProfile.id, user.uid));
+    const reciprocalSwipeSnap = await getDoc(reciprocalSwipeRef);
+
+    if (!reciprocalSwipeSnap.exists() || reciprocalSwipeSnap.data().direction !== 'like') {
+      return false;
+    }
+
+    const matchDocId = getMatchDocId(user.uid, targetProfile.id);
+    const chatId = getChatId(user.uid, targetProfile.id);
+    const matchResult = calculateMatchScore(userData, targetProfile);
+
+    await setDoc(
+      doc(db, 'matches', matchDocId),
+      {
+        users: [user.uid, targetProfile.id],
+        matchScore: matchResult.score,
+        commonInterests: matchResult.commonInterests.slice(0, 8),
+        chatId,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return true;
+  };
+
+  const registerSwipe = async (targetProfile: DiscoveryProfile, direction: 'like' | 'pass') => {
+    if (!user) return { isMatch: false };
+
+    await setDoc(
+      doc(db, 'swipes', getSwipeDocId(user.uid, targetProfile.id)),
+      {
+        fromUid: user.uid,
+        toUid: targetProfile.id,
+        direction,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    if (direction !== 'like') {
+      return { isMatch: false };
+    }
+
+    const isMatch = await createMutualMatchIfNeeded(targetProfile);
+    return { isMatch };
+  };
 
   const fetchProfiles = async () => {
     if (!user || !userData) return;
@@ -18,8 +86,18 @@ export const useDiscovery = () => {
       const excludedIds = new Set([
         user.uid,
         ...(userData.blockedUsers || []),
-        ...(userData.swipedIds || []), // We'll need to track swipes in Firestore
       ]);
+
+      // Also exclude users the current user has already swiped on.
+      const swipesRef = collection(db, 'swipes');
+      const swipesQ = query(swipesRef, where('fromUid', '==', user.uid), limit(300));
+      const swipeSnapshot = await getDocs(swipesQ);
+      swipeSnapshot.forEach((swipeDoc) => {
+        const swipeData = swipeDoc.data();
+        if (swipeData?.toUid) {
+          excludedIds.add(swipeData.toUid);
+        }
+      });
 
       // 2. Query Firestore for DIU students
       // Note: In production, we'd use more complex filtering and pagination.
@@ -31,16 +109,18 @@ export const useDiscovery = () => {
       );
 
       const querySnapshot = await getDocs(q);
-      const fetchedProfiles: any[] = [];
+      const fetchedProfiles: DiscoveryProfile[] = [];
 
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!excludedIds.has(doc.id) && !data.isProfileLocked) {
+        const data = doc.data() as DiscoveryProfile;
+        const blockedCurrentUser = (data.blockedUsers || []).includes(user.uid);
+
+        if (!excludedIds.has(doc.id) && !data.isProfileLocked && !data.isBanned && !blockedCurrentUser) {
           // 3. Calculate match score
           const matchResult = calculateMatchScore(userData, data);
           fetchedProfiles.push({
-            id: doc.id,
             ...data,
+            id: doc.id,
             matchScore: matchResult.score,
             commonInterests: matchResult.commonInterests,
           });
@@ -48,7 +128,7 @@ export const useDiscovery = () => {
       });
 
       // Sort by best match score
-      fetchedProfiles.sort((a, b) => b.matchScore - a.matchScore);
+      fetchedProfiles.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
       setProfiles(fetchedProfiles);
     } catch (err: any) {
       console.error("Discovery error:", err);
@@ -62,5 +142,13 @@ export const useDiscovery = () => {
     fetchProfiles();
   }, [user, userData]);
 
-  return { profiles, loading, error, refresh: fetchProfiles, setProfiles };
+  return {
+    profiles,
+    loading,
+    error,
+    refresh: fetchProfiles,
+    setProfiles,
+    likeProfile: (profile: DiscoveryProfile) => registerSwipe(profile, 'like'),
+    passProfile: (profile: DiscoveryProfile) => registerSwipe(profile, 'pass'),
+  };
 };

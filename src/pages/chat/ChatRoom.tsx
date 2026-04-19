@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { ChevronLeft, Send, Image, Smile, MoreVertical, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, Send, Image, MoreVertical, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -20,15 +18,37 @@ const ChatRoom = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Determine recipient from matches/chats collection 
-    // For simplicity, we'll assume we can fetch it via match doc or logic
-    // In this MVP, we fetch the first user in the match who isn't us
     const fetchRecipient = async () => {
-      // Mock recipient fetch logic - in real app, fetch from matches collection
-      // For now, we'll just show a generic "Match" if we don't have the ID
+      if (!chatId || !user) return;
+
+      try {
+        const matchesRef = collection(db, 'matches');
+        const q = query(
+          matchesRef,
+          where('chatId', '==', chatId),
+          where('users', 'array-contains', user.uid),
+          limit(1)
+        );
+
+        const matchSnapshot = await getDocs(q);
+
+        if (matchSnapshot.empty) return;
+
+        const matchData = matchSnapshot.docs[0].data();
+        const recipientId = (matchData.users || []).find((id: string) => id !== user.uid);
+        if (!recipientId) return;
+
+        const recipientDoc = await getDoc(doc(db, 'users', recipientId));
+        if (recipientDoc.exists()) {
+          setRecipient({ id: recipientDoc.id, ...recipientDoc.data() });
+        }
+      } catch (err) {
+        console.error('Failed to load chat recipient:', err);
+      }
     };
+
     fetchRecipient();
-  }, [chatId]);
+  }, [chatId, user]);
 
   useEffect(() => {
     if (scrollRef.current) {

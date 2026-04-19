@@ -162,8 +162,8 @@ const Profile = () => {
               <LogOut size={20} />
               <span className="text-sm font-black">Sign Out</span>
             </button>
-          </section>
-        </div>
+          </Card>
+        </section>
       </div>
     </div>
   );

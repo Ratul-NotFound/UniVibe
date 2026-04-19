@@ -33,6 +33,30 @@ storage.rules
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
+.env.*
+!.env.example
+
+# Credentials and private keys
+*.pem
+*.p12
+*.pfx
+*.key
+*.jks
+*serviceAccount*.json
+serviceAccountKey.json
+.npmrc
+
+# Local Firebase tools/config caches
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Local command outputs that may include sensitive data
+build-output.txt
+lint-output.txt
 
 # Build
 dist

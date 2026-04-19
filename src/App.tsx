@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 // Pages
 import Login from '@/pages/auth/Login';
 import Signup from '@/pages/auth/Signup';
+import VerifyEmail from '@/pages/auth/VerifyEmail';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 import OnboardingWizard from '@/pages/onboarding/OnboardingWizard';
 import Discovery from '@/pages/home/Discovery';
@@ -19,18 +20,16 @@ import AdminReports from '@/pages/admin/Reports';
 import AppLayout from '@/components/layout/AppLayout';
 
 // Placeholder Pages
-const Search = () => <div className="p-8 text-center pt-20">Browse coming soon...</div>;
-const Matches = () => <div className="p-8 text-center pt-20">Your matches coming soon...</div>;
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
-const Profile = () => <div className="p-8 text-center pt-20">Profile settings coming soon...</div>;
 
 // Route Guard Component
-const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = true }: { 
+const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = true, requireRole }: { 
   children: React.ReactNode, 
   requireVerified?: boolean, 
-  requireOnboarded?: boolean 
+  requireOnboarded?: boolean,
+  requireRole?: 'admin' | 'moderator' | 'user'
 }) => {
-  const { user, loading, isVerified, isOnboarded } = useAuth();
+  const { user, userData, loading, isVerified, isOnboarded } = useAuth();
 
   if (loading) {
     return (
@@ -43,6 +42,7 @@ const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = t
   if (!user) return <Navigate to="/login" />;
   if (requireVerified && !isVerified) return <Navigate to="/verify-email" />;
   if (requireOnboarded && !isOnboarded) return <Navigate to="/onboarding" />;
+  if (requireRole && userData?.role !== requireRole) return <Navigate to="/" />;
 
   return <>{children}</>;
 };
@@ -108,22 +108,22 @@ function App() {
 
           {/* Admin Routes */}
           <Route path="/admin" element={
-            <ProtectedRoute>
+            <ProtectedRoute requireRole="admin">
               <AdminLayout><AdminDashboard /></AdminLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/users" element={
-            <ProtectedRoute>
+            <ProtectedRoute requireRole="admin">
               <AdminLayout><AdminUsers /></AdminLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/reports" element={
-            <ProtectedRoute>
+            <ProtectedRoute requireRole="admin">
               <AdminLayout><AdminReports /></AdminLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/logs" element={
-            <ProtectedRoute>
+            <ProtectedRoute requireRole="admin">
               <AdminLayout><div className="p-8">Admin Logs coming soon...</div></AdminLayout>
             </ProtectedRoute>
           } />

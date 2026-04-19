@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, hasKeys } from '@/lib/firebase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
 
 const Login = () => {
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +43,21 @@ const Login = () => {
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">Welcome back, student!</p>
         </div>
 
+        {!hasKeys && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center gap-3 rounded-2xl bg-amber-500/10 p-4 text-amber-600 dark:bg-amber-500/5 text-xs font-semibold border border-amber-500/20"
+          >
+            <AlertCircle className="shrink-0" size={18} />
+            <p>
+              <strong>UI Preview Mode:</strong> Firebase keys are missing. Authenticated actions are disabled, but you can explore the design.
+            </p>
+          </motion.div>
+        )}
+
         <Card>
+
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
               label="DIU Email"

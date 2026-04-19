@@ -43,6 +43,27 @@ const VerifyEmail = () => {
     }
   };
 
+  const handleIHaveVerified = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await user.reload();
+      await user.getIdToken(true);
+
+      if (user.emailVerified) {
+        toast.success('Email verified. Welcome!');
+        navigate('/');
+      } else {
+        toast.error('Email is not verified yet. Please check your inbox and click the verification link.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Could not refresh verification status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4 dark:bg-zinc-950">
       <motion.div
@@ -71,7 +92,8 @@ const VerifyEmail = () => {
             <Button
               className="w-full"
               variant="primary"
-              onClick={() => window.location.reload()}
+              onClick={handleIHaveVerified}
+              isLoading={loading}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               I've verified my email

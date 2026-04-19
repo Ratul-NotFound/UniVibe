@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 import { getMessaging } from 'firebase/messaging';
+import { getAnalytics } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,15 +14,38 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Check if keys exist
+const hasKeys = !!import.meta.env.VITE_FIREBASE_API_KEY;
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const rtdb = getDatabase(app);
-export const storage = getStorage(app);
-export const messaging = getMessaging(app);
+let app;
+let auth: any;
+let db: any;
+let rtdb: any;
+let storage: any;
+let messaging: any;
+let analytics: any;
 
+if (hasKeys) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    rtdb = getDatabase(app);
+    storage = getStorage(app);
+    messaging = getMessaging(app);
+    if (typeof window !== 'undefined') {
+      analytics = getAnalytics(app);
+    }
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+  }
+} else {
+  console.warn("UniVibe: Firebase keys missing. Running in UI-Only mode.");
+}
+
+export { auth, db, rtdb, storage, messaging, analytics, hasKeys };
 export default app;
+

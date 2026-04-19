@@ -11,7 +11,7 @@ import {
   MoreHorizontal,
   UserCheck
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+// import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const StatCard = ({ title, value, icon: Icon, color }: any) => (
   <Card className="flex items-center gap-4">
@@ -20,7 +20,7 @@ const StatCard = ({ title, value, icon: Icon, color }: any) => (
     </div>
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">{title}</p>
-      <p className="text-2xl font-black">{value}</p>
+      <p className="text-2xl font-black">{value || 0}</p>
     </div>
   </Card>
 );
@@ -55,16 +55,6 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
-  const chartData = [
-    { name: 'Mon', users: 400 },
-    { name: 'Tue', users: 600 },
-    { name: 'Wed', users: 550 },
-    { name: 'Thu', users: 800 },
-    { name: 'Fri', users: 950 },
-    { name: 'Sat', users: 700 },
-    { name: 'Sun', users: 1100 },
-  ];
-
   return (
     <div className="space-y-8">
       <div>
@@ -80,28 +70,13 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Registration Chart */}
-        <Card className="h-[400px]">
-          <h3 className="mb-6 font-bold">New Registrations</h3>
-          <ResponsiveContainer width="100%" height="90%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="users" 
-                stroke="#D4537E" 
-                strokeWidth={4} 
-                dot={{ fill: '#D4537E', strokeWidth: 2, r: 4 }} 
-                activeDot={{ r: 8 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        {/* Registration Chart Placeholder */}
+        <Card className="flex h-[400px] flex-col items-center justify-center text-center">
+          <TrendingUp size={48} className="mb-4 text-zinc-200" />
+          <h3 className="font-bold text-zinc-400 text-sm">Growth Analytics</h3>
+          <p className="text-xs text-zinc-300">Detailed charts will load after dependency optimization.</p>
         </Card>
+
 
         {/* Recent Reports */}
         <Card>

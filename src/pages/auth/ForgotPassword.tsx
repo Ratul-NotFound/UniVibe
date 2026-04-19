@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Key } from 'lucide-react';
+import { ArrowLeft, Key, RefreshCw } from 'lucide-react';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');

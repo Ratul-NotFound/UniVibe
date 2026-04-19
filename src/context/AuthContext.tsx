@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { User, onIdTokenChanged } from 'firebase/auth';
+import { auth, db, hasKeys } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -19,28 +19,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
-      if (user) {
-        // Fetch additional user data from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data());
+    if (!hasKeys) {
+      setLoading(false);
+      return;
+    }
+
+    let unsubscribeUserDoc: (() => void) | null = null;
+
+    const subscribeToUserDoc = (uid: string, hasRetried = false) => {
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
+      }
+
+      unsubscribeUserDoc = onSnapshot(
+        doc(db, 'users', uid),
+        (userDoc) => {
+          setUserData(userDoc.exists() ? userDoc.data() : null);
+          setLoading(false);
+        },
+        async (error: any) => {
+          // Token claims can be stale right after verify/login; force one refresh and retry.
+          if (!hasRetried && error?.code === 'permission-denied' && auth.currentUser) {
+            try {
+              await auth.currentUser.getIdToken(true);
+              subscribeToUserDoc(uid, true);
+              return;
+            } catch (refreshError) {
+              console.error("Token refresh failed:", refreshError);
+            }
           }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
+
+          console.error("Error listening to user data:", error);
+          setLoading(false);
         }
+      );
+    };
+
+    const unsubscribe = onIdTokenChanged(auth, (user) => {
+      setUser(user);
+
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
+      }
+
+      if (user) {
+        setLoading(true);
+        subscribeToUserDoc(user.uid);
       } else {
         setUserData(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+      }
+      unsubscribe();
+    };
   }, []);
+
 
   const value = {
     user,
