@@ -38,6 +38,13 @@ interface UserData {
 }
 
 const hasCompletedOnboarding = (data: UserData | null): boolean => {
+  if (typeof window !== 'undefined' && auth.currentUser) {
+    const sessionOnboarded = sessionStorage.getItem(`onboarding-complete:${auth.currentUser.uid}`) === '1';
+    if (sessionOnboarded) {
+      return true;
+    }
+  }
+
   if (!data) return false;
   if (data.isOnboarded === true) return true;
 
@@ -78,7 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeUserDoc = onSnapshot(
         doc(db, 'users', uid),
         (userDoc) => {
-          setUserData(userDoc.exists() ? userDoc.data() : null);
+          const data = userDoc.exists() ? userDoc.data() : null;
+
+          if (typeof window !== 'undefined' && data?.isOnboarded === true) {
+            sessionStorage.setItem(`onboarding-complete:${uid}`, '1');
+          }
+
+          setUserData(data);
           setLoading(false);
         },
         async (error: FirestoreError) => {
@@ -111,6 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(true);
         subscribeToUserDoc(user.uid);
       } else {
+        if (typeof window !== 'undefined') {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < sessionStorage.length; i += 1) {
+            const key = sessionStorage.key(i);
+            if (key?.startsWith('onboarding-complete:')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((key) => sessionStorage.removeItem(key));
+        }
         setUserData(null);
         setLoading(false);
       }

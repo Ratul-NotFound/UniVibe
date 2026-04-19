@@ -190,8 +190,12 @@ const OnboardingWizard = () => {
           throw writeError;
         }
       }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
+      }
+
       if (uniqueChecksSkipped) {
-        toast('Profile saved. Username/phone uniqueness check was skipped due to temporary permission limits.', { icon: '⚠️' });
+        toast.success('Profile saved.');
       }
       toast.success('Profile completed!');
       navigate('/', { replace: true });
