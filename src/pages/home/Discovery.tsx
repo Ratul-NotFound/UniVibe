@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Heart, X, Star, RotateCcw, Info } from 'lucide-react';
+import { Heart, X, Star, RotateCcw, Bell, Sparkles, User as UserIcon } from 'lucide-react';
 import { useDiscovery } from '@/hooks/useDiscovery';
+import { useAuth } from '@/context/AuthContext';
 import ProfileCard from '@/components/profile/ProfileCard';
 import { Button } from '@/components/ui/Button';
 import { ProfileSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'react-hot-toast';
 
 const Discovery = () => {
+  const { user, userData } = useAuth();
   const { profiles, loading, error, refresh, likeProfile, passProfile } = useDiscovery();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false);
@@ -31,6 +33,39 @@ const Discovery = () => {
 
   const currentProfile = profiles[currentIndex];
 
+  const renderHeader = () => (
+    <div className="sticky top-0 z-20 border-b border-zinc-100 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/85">
+      <div className="mx-auto flex w-full max-w-[460px] items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-white shadow-soft">
+            <Sparkles size={18} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Discover</p>
+            <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">UniVibe</h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            <Bell size={18} />
+            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-white bg-rose-500 dark:border-zinc-900" />
+          </button>
+
+          <div className="h-10 w-10 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
+            {userData?.photoURL || user?.photoURL ? (
+              <img src={userData?.photoURL || user?.photoURL || ''} alt="My avatar" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-zinc-500 dark:text-zinc-300">
+                <UserIcon size={18} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const handleSwipe = async (direction: 'left' | 'right') => {
     if (!currentProfile) return;
 
@@ -50,12 +85,9 @@ const Discovery = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-zinc-50 p-6 dark:bg-zinc-950">
-        <div className="mb-8 flex items-center justify-between">
-           <div className="h-8 w-32 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
-           <div className="h-10 w-10 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-800" />
-        </div>
-        <div className="mx-auto w-full max-w-[400px]">
+      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+        {renderHeader()}
+        <div className="mx-auto w-full max-w-[400px] p-6">
            <ProfileSkeleton />
            <div className="mt-12 flex justify-center gap-4">
               {[1,2,3,4].map(i => <div key={i} className="h-14 w-14 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-900" />)}
@@ -73,45 +105,45 @@ const Discovery = () => {
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-xl font-bold text-danger">Oops! Something went wrong</h2>
-        <p className="mt-2 text-zinc-600">{error}</p>
-        <Button onClick={() => refresh()} className="mt-6">Try Again</Button>
+      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+        {renderHeader()}
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+          <h2 className="text-xl font-bold text-danger">Oops! Something went wrong</h2>
+          <p className="mt-2 text-zinc-600">{error}</p>
+          <Button onClick={() => refresh()} className="mt-6">Try Again</Button>
+        </div>
       </div>
     );
   }
 
   if (currentIndex >= profiles.length) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900">
-          <RotateCcw className="h-10 w-10 text-zinc-400" />
+      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+        {renderHeader()}
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+          <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900">
+            <RotateCcw className="h-10 w-10 text-zinc-400" />
+          </div>
+          <h2 className="text-2xl font-black italic text-zinc-400">That's everyone for now!</h2>
+          <p className="mt-2 text-zinc-500">Check back later or change your filters to see more people.</p>
+          <Button
+            onClick={async () => {
+              await refresh();
+              setCurrentIndex(0);
+            }}
+            variant="outline"
+            className="mt-8"
+          >
+            Refresh List
+          </Button>
         </div>
-        <h2 className="text-2xl font-black italic text-zinc-400">That's everyone for now!</h2>
-        <p className="mt-2 text-zinc-500">Check back later or change your filters to see more people.</p>
-        <Button
-          onClick={async () => {
-            await refresh();
-            setCurrentIndex(0);
-          }}
-          variant="outline"
-          className="mt-8"
-        >
-          Refresh List
-        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4">
-        <h1 className="text-2xl font-black tracking-tighter text-primary">UniVibe</h1>
-        <Button variant="ghost" size="icon">
-          <Info className="h-5 w-5 text-zinc-400" />
-        </Button>
-      </div>
+      {renderHeader()}
 
       <div className="relative flex flex-1 flex-col items-center justify-center p-4">
         <div className="relative h-[550px] w-full max-w-[400px]">

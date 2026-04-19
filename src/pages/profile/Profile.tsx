@@ -322,7 +322,7 @@ const Profile = () => {
             )}
           </div>
           <div>
-            <h1 className="text-2xl font-black">{userData?.name || 'Loading...'}</h1>
+            <h1 className="text-2xl font-black">{userData?.name || user?.displayName || 'Student'}</h1>
             {userData?.username && (
               <p className="text-xs font-semibold text-primary">@{userData.username}</p>
             )}
