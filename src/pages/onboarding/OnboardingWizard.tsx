@@ -128,6 +128,8 @@ const OnboardingWizard = () => {
         }
       };
 
+      let uniqueChecksSkipped = false;
+
       try {
         await runUniqueChecks();
       } catch (error: any) {
@@ -145,7 +147,16 @@ const OnboardingWizard = () => {
           // Claims may still be stale for a short time right after email verification.
           await user.reload();
           await user.getIdToken(true);
-          await runUniqueChecks();
+          try {
+            await runUniqueChecks();
+          } catch (retryError: any) {
+            if (retryError?.code === 'permission-denied') {
+              // Do not block onboarding completion if uniqueness checks are temporarily unavailable.
+              uniqueChecksSkipped = true;
+            } else {
+              throw retryError;
+            }
+          }
         } else {
           throw error;
         }
@@ -157,6 +168,9 @@ const OnboardingWizard = () => {
         phoneNormalized,
         isOnboarded: true,
       }, { merge: true });
+      if (uniqueChecksSkipped) {
+        toast('Profile saved. Username/phone uniqueness check was skipped due to temporary permission limits.', { icon: '⚠️' });
+      }
       toast.success('Profile completed!');
       navigate('/', { replace: true });
     } catch (error: any) {
