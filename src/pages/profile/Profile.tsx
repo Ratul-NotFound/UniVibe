@@ -6,6 +6,9 @@ import { collection, doc, getDocs, limit, query, updateDoc, where } from 'fireba
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import ProfileCard from '@/components/profile/ProfileCard';
+import { useSafety } from '@/hooks/useSafety';
 import { toast } from 'react-hot-toast';
 import { DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR, INTEREST_CATEGORIES } from '@/lib/matchAlgorithm';
 import { 
@@ -19,7 +22,9 @@ import {
   CheckCircle,
   Smartphone,
   Calendar,
-  Save
+  Save,
+  Eye,
+  AlertTriangle
 } from 'lucide-react';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -47,8 +52,11 @@ const PrivacyToggle = ({ label, icon: Icon, value, onChange, description }: any)
 
 const Profile = () => {
   const { user, userData } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { unblockUser } = useSafety();
   const [savingProfile, setSavingProfile] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isSafetyCenterOpen, setIsSafetyCenterOpen] = useState(false);
+  const [unblockingUid, setUnblockingUid] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
     username: userData?.username || '',
     phone: userData?.phone || '',
@@ -274,6 +282,23 @@ const Profile = () => {
   const handleLogout = async () => {
     await signOut(auth);
     window.location.href = '/login';
+  };
+
+  const handleUnblock = async (targetUid: string) => {
+    setUnblockingUid(targetUid);
+    await unblockUser(targetUid);
+    setUnblockingUid(null);
+  };
+
+  const previewUser = {
+    ...userData,
+    name: userData?.name || user?.displayName || 'You',
+    year: userData?.year || profileForm.year || '',
+    department: userData?.department || profileForm.department || '',
+    lookingFor: userData?.lookingFor || profileForm.lookingFor || '',
+    bio: userData?.bio || profileForm.bio || '',
+    interests: userData?.interests || profileForm.interests || {},
+    photoURL: userData?.photoURL || user?.photoURL || '',
   };
 
   return (
@@ -511,6 +536,16 @@ const Profile = () => {
         {/* Other Actions */}
         <section>
           <Card className="p-0 overflow-hidden">
+            <button
+              onClick={() => setIsPreviewOpen(true)}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <Eye size={20} className="text-zinc-500" />
+                <span className="text-sm font-bold">View My Profile</span>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </button>
             <button className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
               <div className="flex items-center gap-3">
                 <Bell size={20} className="text-zinc-500" />
@@ -518,7 +553,10 @@ const Profile = () => {
               </div>
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
-            <button className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+            <button
+              onClick={() => setIsSafetyCenterOpen(true)}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
               <div className="flex items-center gap-3">
                 <Shield size={20} className="text-zinc-500" />
                 <span className="text-sm font-bold">Safety Center</span>
@@ -535,6 +573,64 @@ const Profile = () => {
           </Card>
         </section>
       </div>
+
+      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title="My Profile Preview">
+        <div className="h-[65vh]">
+          <ProfileCard user={previewUser} />
+        </div>
+      </Modal>
+
+      <Modal isOpen={isSafetyCenterOpen} onClose={() => setIsSafetyCenterOpen(false)} title="Safety Center">
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/40">
+            <p className="flex items-start gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              If someone makes you uncomfortable, block and report from Discovery/Chat immediately.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold">Quick Safety Controls</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={userData?.isGhostMode ? 'primary' : 'outline'}
+                onClick={() => updateSettings('isGhostMode', !userData?.isGhostMode)}
+              >
+                {userData?.isGhostMode ? 'Ghost Mode: On' : 'Ghost Mode: Off'}
+              </Button>
+              <Button
+                variant={userData?.isProfileLocked ? 'primary' : 'outline'}
+                onClick={() => updateSettings('isProfileLocked', !userData?.isProfileLocked)}
+              >
+                {userData?.isProfileLocked ? 'Profile Locked' : 'Profile Unlocked'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold">Blocked Users</h3>
+            {userData?.blockedUsers?.length ? (
+              <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                {userData.blockedUsers.map((uid) => (
+                  <div key={uid} className="flex items-center justify-between rounded-xl border border-zinc-200 p-2 dark:border-zinc-700">
+                    <span className="truncate text-xs text-zinc-600 dark:text-zinc-300">{uid}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUnblock(uid)}
+                      isLoading={unblockingUid === uid}
+                    >
+                      Unblock
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">No blocked users yet.</p>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

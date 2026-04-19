@@ -1,4 +1,4 @@
-import { doc, updateDoc, arrayUnion, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,19 @@ export const useSafety = () => {
     } catch (error) {
       console.error("Block error:", error);
       toast.error('Failed to block user');
+    }
+  };
+
+  const unblockUser = async (targetUid: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        blockedUsers: arrayRemove(targetUid)
+      });
+      toast.success('User unblocked successfully');
+    } catch (error) {
+      console.error("Unblock error:", error);
+      toast.error('Failed to unblock user');
     }
   };
 
@@ -37,5 +50,5 @@ export const useSafety = () => {
     }
   };
 
-  return { blockUser, reportUser };
+  return { blockUser, unblockUser, reportUser };
 };
