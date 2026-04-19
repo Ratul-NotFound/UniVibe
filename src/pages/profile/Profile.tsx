@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
+import { DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR, INTEREST_CATEGORIES } from '@/lib/matchAlgorithm';
 import { 
   User, 
   Shield, 
@@ -53,10 +54,15 @@ const Profile = () => {
     phone: userData?.phone || '',
     birthDate: userData?.birthDate || '',
     gender: userData?.gender || '',
+    department: userData?.department || '',
+    year: userData?.year || '',
+    lookingFor: userData?.lookingFor || '',
+    bio: userData?.bio || '',
     hometown: userData?.hometown || '',
     currentCity: userData?.currentCity || '',
     engagementType: userData?.engagementType || '',
     engagementDetails: userData?.engagementDetails || '',
+    interests: (userData?.interests || {}) as Record<string, string[]>,
   });
 
   const normalizeUsername = (value: string) => value.trim().toLowerCase();
@@ -85,12 +91,34 @@ const Profile = () => {
       phone: userData?.phone || '',
       birthDate: userData?.birthDate || '',
       gender: userData?.gender || '',
+      department: userData?.department || '',
+      year: userData?.year || '',
+      lookingFor: userData?.lookingFor || '',
+      bio: userData?.bio || '',
       hometown: userData?.hometown || '',
       currentCity: userData?.currentCity || '',
       engagementType: userData?.engagementType || '',
       engagementDetails: userData?.engagementDetails || '',
+      interests: (userData?.interests || {}) as Record<string, string[]>,
     });
   }, [userData]);
+
+  const toggleInterest = (category: string, interest: string) => {
+    setProfileForm((prev) => {
+      const catInterests = prev.interests[category] || [];
+      const newCatInterests = catInterests.includes(interest)
+        ? catInterests.filter((i) => i !== interest)
+        : [...catInterests, interest];
+
+      return {
+        ...prev,
+        interests: {
+          ...prev.interests,
+          [category]: newCatInterests,
+        },
+      };
+    });
+  };
 
   const updatePrivacy = async (field: string, value: any) => {
     if (!user) return;
@@ -141,6 +169,16 @@ const Profile = () => {
 
     if (!profileForm.gender) {
       toast.error('Please select a gender.');
+      return;
+    }
+
+    if (!profileForm.department || !profileForm.year || !profileForm.lookingFor) {
+      toast.error('Please complete department, academic year, and looking for.');
+      return;
+    }
+
+    if (Object.values(profileForm.interests).flat().length < 5) {
+      toast.error('Please select at least 5 interests.');
       return;
     }
 
@@ -209,10 +247,15 @@ const Profile = () => {
         phoneNormalized,
         birthDate: profileForm.birthDate,
         gender: profileForm.gender,
+        department: profileForm.department,
+        year: profileForm.year,
+        lookingFor: profileForm.lookingFor,
+        bio: profileForm.bio.trim(),
         hometown: profileForm.hometown.trim(),
         currentCity: profileForm.currentCity.trim(),
         engagementType: profileForm.engagementType,
         engagementDetails: profileForm.engagementDetails.trim(),
+        interests: profileForm.interests,
       });
 
       toast.success('Profile details updated');
@@ -298,6 +341,58 @@ const Profile = () => {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department</label>
+              <select
+                className="w-full rounded-card border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-900"
+                value={profileForm.department}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, department: e.target.value }))}
+              >
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Academic Year</label>
+              <div className="flex flex-wrap gap-2">
+                {ACADEMIC_YEARS.map((y) => (
+                  <button
+                    key={y}
+                    onClick={() => setProfileForm((prev) => ({ ...prev, year: y }))}
+                    className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.year === y ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Looking For</label>
+              <div className="grid grid-cols-2 gap-2">
+                {LOOKING_FOR.map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setProfileForm((prev) => ({ ...prev, lookingFor: item.value }))}
+                    className={`rounded-card border p-3 text-center text-sm font-medium transition-colors ${profileForm.lookingFor === item.value ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Bio</label>
+              <textarea
+                placeholder="Share a bit about yourself..."
+                className="h-24 w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                value={profileForm.bio}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
+              />
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
                 label="Hometown"
@@ -336,6 +431,31 @@ const Profile = () => {
                 onChange={(e) => setProfileForm((prev) => ({ ...prev, engagementDetails: e.target.value }))}
               />
             )}
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Interests (select at least 5)</label>
+              <div className="max-h-64 space-y-4 overflow-y-auto pr-2">
+                {Object.entries(INTEREST_CATEGORIES).map(([catId, catInfo]) => (
+                  <div key={catId}>
+                    <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">{catId}</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {catInfo.interests.map((interest) => {
+                        const isSelected = profileForm.interests[catId]?.includes(interest);
+                        return (
+                          <button
+                            key={interest}
+                            onClick={() => toggleInterest(catId, interest)}
+                            className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-all ${isSelected ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 dark:ring-offset-zinc-950' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                          >
+                            {interest}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex justify-end">
               <Button onClick={handleProfileSave} isLoading={savingProfile}>
