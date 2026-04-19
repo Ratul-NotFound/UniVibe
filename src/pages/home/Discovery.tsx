@@ -59,7 +59,7 @@ const Discovery = () => {
       <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
         <h2 className="text-xl font-bold text-danger">Oops! Something went wrong</h2>
         <p className="mt-2 text-zinc-600">{error}</p>
-        <Button onClick={refresh} className="mt-6">Try Again</Button>
+        <Button onClick={() => refresh()} className="mt-6">Try Again</Button>
       </div>
     );
   }

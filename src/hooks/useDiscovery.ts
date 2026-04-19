@@ -78,9 +78,15 @@ export const useDiscovery = () => {
     return { isMatch };
   };
 
-  const fetchProfiles = async () => {
-    if (!user || !userData) return;
+  const fetchProfiles = async (hasRetried = false) => {
+    if (!user || !userData) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
       // 1. Get IDs of users to exclude (blocked, already matched, etc.)
       const excludedIds = new Set([
@@ -131,6 +137,17 @@ export const useDiscovery = () => {
       fetchedProfiles.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
       setProfiles(fetchedProfiles);
     } catch (err: any) {
+      if (!hasRetried && err?.code === 'permission-denied') {
+        try {
+          await user.reload();
+          await user.getIdToken(true);
+          await fetchProfiles(true);
+          return;
+        } catch (refreshErr) {
+          console.error('Discovery token refresh failed:', refreshErr);
+        }
+      }
+
       console.error("Discovery error:", err);
       setError(err.message);
     } finally {
