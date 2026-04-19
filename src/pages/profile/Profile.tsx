@@ -119,6 +119,10 @@ const Profile = () => {
 
     const usernameLower = normalizeUsername(profileForm.username);
     const phoneNormalized = normalizePhone(profileForm.phone);
+    const currentUsernameLower = normalizeUsername(userData?.username || '');
+    const currentPhoneNormalized = normalizePhone(userData?.phone || '');
+    const usernameChanged = usernameLower !== currentUsernameLower;
+    const phoneChanged = phoneNormalized !== currentPhoneNormalized;
 
     if (!/^[a-z0-9._]{3,20}$/.test(usernameLower)) {
       toast.error('Username must be 3-20 chars and use only letters, numbers, dot, or underscore.');
@@ -142,22 +146,41 @@ const Profile = () => {
 
     setSavingProfile(true);
     try {
-      const usersRef = collection(db, 'users');
-      const [usernameSnap, phoneSnap] = await Promise.all([
-        getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
-        getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
-      ]);
+      if (usernameChanged || phoneChanged) {
+        await user.reload();
+        await user.getIdToken(true);
 
-      const usernameTaken = usernameSnap.docs.some((d) => d.id !== user.uid);
-      if (usernameTaken) {
-        toast.error('Username is already taken. Please choose another one.');
-        return;
-      }
+        const usersRef = collection(db, 'users');
+        const queryTasks: Promise<any>[] = [];
 
-      const phoneTaken = phoneSnap.docs.some((d) => d.id !== user.uid);
-      if (phoneTaken) {
-        toast.error('Phone number is already used by another account.');
-        return;
+        if (usernameChanged) {
+          queryTasks.push(getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))));
+        }
+
+        if (phoneChanged) {
+          queryTasks.push(getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))));
+        }
+
+        const queryResults = await Promise.all(queryTasks);
+        let resultIndex = 0;
+
+        if (usernameChanged) {
+          const usernameSnap = queryResults[resultIndex++];
+          const usernameTaken = usernameSnap.docs.some((d: any) => d.id !== user.uid);
+          if (usernameTaken) {
+            toast.error('Username is already taken. Please choose another one.');
+            return;
+          }
+        }
+
+        if (phoneChanged) {
+          const phoneSnap = queryResults[resultIndex++];
+          const phoneTaken = phoneSnap.docs.some((d: any) => d.id !== user.uid);
+          if (phoneTaken) {
+            toast.error('Phone number is already used by another account.');
+            return;
+          }
+        }
       }
 
       await updateDoc(doc(db, 'users', user.uid), {
@@ -176,6 +199,10 @@ const Profile = () => {
       toast.success('Profile details updated');
     } catch (error: any) {
       console.error(error);
+      if (error?.code === 'permission-denied') {
+        toast.error('Permission denied while checking username/phone. Keep them unchanged or verify your email, then try again.');
+        return;
+      }
       toast.error(error?.message || 'Failed to update profile details');
     } finally {
       setSavingProfile(false);
