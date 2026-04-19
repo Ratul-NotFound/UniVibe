@@ -4,24 +4,25 @@ import { useAuth } from './context/AuthContext';
 // Pages
 import Login from '@/pages/auth/Login';
 import Signup from '@/pages/auth/Signup';
-import VerifyEmail from '@/pages/auth/VerifyEmail';
 import ForgotPassword from '@/pages/auth/ForgotPassword';
 import OnboardingWizard from '@/pages/onboarding/OnboardingWizard';
+import Discovery from '@/pages/home/Discovery';
+import Search from '@/pages/search/Search';
+import Matches from '@/pages/matches/Matches';
+import ChatRoom from '@/pages/chat/ChatRoom';
+import ChatList from '@/pages/chat/ChatList';
+import Profile from '@/pages/profile/Profile';
+import AdminLayout from '@/pages/admin/AdminLayout';
+import AdminDashboard from '@/pages/admin/Dashboard';
+import AdminUsers from '@/pages/admin/Users';
+import AdminReports from '@/pages/admin/Reports';
+import AppLayout from '@/components/layout/AppLayout';
 
 // Placeholder Pages
-const Home = () => (
-  <div className="flex flex-col items-center justify-center p-8 text-center min-h-screen">
-    <h1 className="text-4xl font-black text-primary mb-4">UniVibe</h1>
-    <h2 className="text-2xl font-bold mb-2">Welcome!</h2>
-    <p className="text-zinc-600 dark:text-zinc-400">Discover swipe cards coming soon...</p>
-    <button 
-      onClick={() => window.location.href = '/login'} 
-      className="mt-8 text-sm font-medium text-zinc-500 hover:text-primary underline"
-    >
-      Sign out (Mock)
-    </button>
-  </div>
-);
+const Search = () => <div className="p-8 text-center pt-20">Browse coming soon...</div>;
+const Matches = () => <div className="p-8 text-center pt-20">Your matches coming soon...</div>;
+const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
+const Profile = () => <div className="p-8 text-center pt-20">Profile settings coming soon...</div>;
 
 // Route Guard Component
 const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = true }: { 
@@ -59,7 +60,37 @@ function App() {
           {/* Protected Routes */}
           <Route path="/" element={
             <ProtectedRoute>
-              <Home />
+              <AppLayout><Discovery /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/search" element={
+            <ProtectedRoute>
+              <AppLayout><Search /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/matches" element={
+            <ProtectedRoute>
+              <AppLayout><Matches /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/chat" element={
+            <ProtectedRoute>
+              <AppLayout><ChatList /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/chat/:chatId" element={
+            <ProtectedRoute>
+              <ChatRoom />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <AppLayout><Profile /></AppLayout>
             </ProtectedRoute>
           } />
 
@@ -75,8 +106,27 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" />} />
+          {/* Admin Routes */}
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminLayout><AdminDashboard /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute>
+              <AdminLayout><AdminUsers /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/reports" element={
+            <ProtectedRoute>
+              <AdminLayout><AdminReports /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/logs" element={
+            <ProtectedRoute>
+              <AdminLayout><div className="p-8">Admin Logs coming soon...</div></AdminLayout>
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </Router>
