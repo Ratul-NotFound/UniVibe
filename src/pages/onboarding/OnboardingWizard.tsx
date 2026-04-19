@@ -110,23 +110,45 @@ const OnboardingWizard = () => {
       await user.reload();
       await user.getIdToken(true);
 
-      // Check uniqueness for username and phone against other users.
-      const usersRef = collection(db, 'users');
-      const [usernameSnap, phoneSnap] = await Promise.all([
-        getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
-        getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
-      ]);
+      const runUniqueChecks = async () => {
+        const usersRef = collection(db, 'users');
+        const [usernameSnap, phoneSnap] = await Promise.all([
+          getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
+          getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
+        ]);
 
-      const usernameTaken = usernameSnap.docs.some((d) => d.id !== user.uid);
-      if (usernameTaken) {
-        toast.error('Username is already taken. Please choose another one.');
-        return;
-      }
+        const usernameTaken = usernameSnap.docs.some((d) => d.id !== user.uid);
+        if (usernameTaken) {
+          throw new Error('USERNAME_TAKEN');
+        }
 
-      const phoneTaken = phoneSnap.docs.some((d) => d.id !== user.uid);
-      if (phoneTaken) {
-        toast.error('Phone number is already used by another account.');
-        return;
+        const phoneTaken = phoneSnap.docs.some((d) => d.id !== user.uid);
+        if (phoneTaken) {
+          throw new Error('PHONE_TAKEN');
+        }
+      };
+
+      try {
+        await runUniqueChecks();
+      } catch (error: any) {
+        if (error?.message === 'USERNAME_TAKEN') {
+          toast.error('Username is already taken. Please choose another one.');
+          return;
+        }
+
+        if (error?.message === 'PHONE_TAKEN') {
+          toast.error('Phone number is already used by another account.');
+          return;
+        }
+
+        if (error?.code === 'permission-denied') {
+          // Claims may still be stale for a short time right after email verification.
+          await user.reload();
+          await user.getIdToken(true);
+          await runUniqueChecks();
+        } else {
+          throw error;
+        }
       }
 
       await setDoc(doc(db, 'users', user.uid), {
@@ -140,7 +162,7 @@ const OnboardingWizard = () => {
     } catch (error: any) {
       console.error(error);
       if (error?.code === 'permission-denied') {
-        toast.error('Permission denied. Verify your DIU email and try again.');
+        toast.error('Permission denied. Please sign out, sign in again, and try once more.');
       } else {
         toast.error(error.message || 'Error saving profile');
       }

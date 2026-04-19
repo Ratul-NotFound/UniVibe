@@ -147,38 +147,57 @@ const Profile = () => {
     setSavingProfile(true);
     try {
       if (usernameChanged || phoneChanged) {
-        await user.reload();
-        await user.getIdToken(true);
+        const runUniqueChecks = async () => {
+          const usersRef = collection(db, 'users');
+          const queryTasks: Promise<any>[] = [];
 
-        const usersRef = collection(db, 'users');
-        const queryTasks: Promise<any>[] = [];
+          if (usernameChanged) {
+            queryTasks.push(getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))));
+          }
 
-        if (usernameChanged) {
-          queryTasks.push(getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))));
-        }
+          if (phoneChanged) {
+            queryTasks.push(getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))));
+          }
 
-        if (phoneChanged) {
-          queryTasks.push(getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))));
-        }
+          const queryResults = await Promise.all(queryTasks);
+          let resultIndex = 0;
 
-        const queryResults = await Promise.all(queryTasks);
-        let resultIndex = 0;
+          if (usernameChanged) {
+            const usernameSnap = queryResults[resultIndex++];
+            const usernameTaken = usernameSnap.docs.some((d: any) => d.id !== user.uid);
+            if (usernameTaken) {
+              throw new Error('USERNAME_TAKEN');
+            }
+          }
 
-        if (usernameChanged) {
-          const usernameSnap = queryResults[resultIndex++];
-          const usernameTaken = usernameSnap.docs.some((d: any) => d.id !== user.uid);
-          if (usernameTaken) {
+          if (phoneChanged) {
+            const phoneSnap = queryResults[resultIndex++];
+            const phoneTaken = phoneSnap.docs.some((d: any) => d.id !== user.uid);
+            if (phoneTaken) {
+              throw new Error('PHONE_TAKEN');
+            }
+          }
+        };
+
+        try {
+          await runUniqueChecks();
+        } catch (error: any) {
+          if (error?.message === 'USERNAME_TAKEN') {
             toast.error('Username is already taken. Please choose another one.');
             return;
           }
-        }
 
-        if (phoneChanged) {
-          const phoneSnap = queryResults[resultIndex++];
-          const phoneTaken = phoneSnap.docs.some((d: any) => d.id !== user.uid);
-          if (phoneTaken) {
+          if (error?.message === 'PHONE_TAKEN') {
             toast.error('Phone number is already used by another account.');
             return;
+          }
+
+          if (error?.code === 'permission-denied') {
+            await user.reload();
+            await user.getIdToken(true);
+            await runUniqueChecks();
+          } else {
+            throw error;
           }
         }
       }
@@ -200,7 +219,7 @@ const Profile = () => {
     } catch (error: any) {
       console.error(error);
       if (error?.code === 'permission-denied') {
-        toast.error('Permission denied while checking username/phone. Keep them unchanged or verify your email, then try again.');
+        toast.error('Permission denied while checking username/phone. Please sign out, sign in again, and try once more.');
         return;
       }
       toast.error(error?.message || 'Failed to update profile details');
