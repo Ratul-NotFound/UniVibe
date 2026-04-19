@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, setDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { INTEREST_CATEGORIES, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+
+const GENDERS = ['Male', 'Female', 'Other'];
+const ENGAGEMENT_TYPES = ['Club', 'Lab', 'Job', 'Office', 'Freelance', 'None'];
 
 const OnboardingWizard = () => {
   const { user, isOnboarded } = useAuth();
@@ -25,13 +27,41 @@ const OnboardingWizard = () => {
 
   // Form State
   const [formData, setFormData] = useState({
+    username: '',
     bio: '',
+    phone: '',
+    birthDate: '',
+    gender: '',
     department: '',
     year: '',
+    hometown: '',
+    currentCity: '',
+    engagementType: '',
+    engagementDetails: '',
     lookingFor: '',
     interests: {} as Record<string, string[]>,
     photoURL: '',
   });
+
+  const normalizeUsername = (value: string) => value.trim().toLowerCase();
+  const normalizePhone = (value: string) => value.replace(/\D/g, '');
+
+  const isBirthDateValid = (value: string) => {
+    if (!value) return false;
+    const birth = new Date(value);
+    if (Number.isNaN(birth.getTime())) return false;
+
+    const now = new Date();
+    if (birth > now) return false;
+
+    let age = now.getFullYear() - birth.getFullYear();
+    const monthDiff = now.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+
+    return age >= 16;
+  };
 
   const updateFormData = (data: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...data }));
@@ -58,12 +88,51 @@ const OnboardingWizard = () => {
     if (!user) return;
     setLoading(true);
     try {
+      const usernameLower = normalizeUsername(formData.username);
+      const phoneNormalized = normalizePhone(formData.phone);
+
+      if (!/^[a-z0-9._]{3,20}$/.test(usernameLower)) {
+        toast.error('Username must be 3-20 chars and use only letters, numbers, dot, or underscore.');
+        return;
+      }
+
+      if (phoneNormalized.length < 10 || phoneNormalized.length > 15) {
+        toast.error('Please enter a valid phone number.');
+        return;
+      }
+
+      if (!isBirthDateValid(formData.birthDate)) {
+        toast.error('Please provide a valid birth date (minimum age 16).');
+        return;
+      }
+
       // Ensure latest auth claims (including email verification) are reflected before write.
       await user.reload();
       await user.getIdToken(true);
 
+      // Check uniqueness for username and phone against other users.
+      const usersRef = collection(db, 'users');
+      const [usernameSnap, phoneSnap] = await Promise.all([
+        getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
+        getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
+      ]);
+
+      const usernameTaken = usernameSnap.docs.some((d) => d.id !== user.uid);
+      if (usernameTaken) {
+        toast.error('Username is already taken. Please choose another one.');
+        return;
+      }
+
+      const phoneTaken = phoneSnap.docs.some((d) => d.id !== user.uid);
+      if (phoneTaken) {
+        toast.error('Phone number is already used by another account.');
+        return;
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         ...formData,
+        usernameLower,
+        phoneNormalized,
         isOnboarded: true,
       }, { merge: true });
       toast.success('Profile completed!');
@@ -109,6 +178,54 @@ const OnboardingWizard = () => {
               <Card>
                 <h2 className="mb-6 text-2xl font-bold">Tell us about yourself</h2>
                 <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Username</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ratul_09"
+                      className="w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                      value={formData.username}
+                      onChange={e => updateFormData({ username: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Phone Number</label>
+                      <input
+                        type="tel"
+                        placeholder="e.g. 017XXXXXXXX"
+                        className="w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                        value={formData.phone}
+                        onChange={e => updateFormData({ phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Birth Date</label>
+                      <input
+                        type="date"
+                        className="w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                        value={formData.birthDate}
+                        onChange={e => updateFormData({ birthDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Gender</label>
+                    <div className="flex flex-wrap gap-2">
+                      {GENDERS.map(g => (
+                        <button
+                          key={g}
+                          onClick={() => updateFormData({ gender: g })}
+                          className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${formData.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Department</label>
                     <select 
@@ -160,12 +277,67 @@ const OnboardingWizard = () => {
                       onChange={e => updateFormData({ bio: e.target.value })}
                     />
                   </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Where are you from?</label>
+                      <input
+                        type="text"
+                        placeholder="Hometown"
+                        className="w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                        value={formData.hometown}
+                        onChange={e => updateFormData({ hometown: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Where do you live now?</label>
+                      <input
+                        type="text"
+                        placeholder="Current city"
+                        className="w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                        value={formData.currentCity}
+                        onChange={e => updateFormData({ currentCity: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Are you engaged in any club/lab/job/office?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {ENGAGEMENT_TYPES.map(type => (
+                        <button
+                          key={type}
+                          onClick={() => updateFormData({ engagementType: type })}
+                          className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${formData.engagementType === type ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.engagementType && formData.engagementType !== 'None' && (
+                      <input
+                        type="text"
+                        placeholder="Tell us a little (club/lab/company/role)"
+                        className="mt-2 w-full rounded-card border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                        value={formData.engagementDetails}
+                        onChange={e => updateFormData({ engagementDetails: e.target.value })}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-8 flex justify-end">
                   <Button 
                     onClick={nextStep} 
-                    disabled={!formData.department || !formData.year || !formData.lookingFor}
+                    disabled={
+                      !formData.username.trim()
+                      || !formData.phone.trim()
+                      || !formData.birthDate
+                      || !formData.gender
+                      || !formData.department
+                      || !formData.year
+                      || !formData.lookingFor
+                    }
                   >
                     Continue
                     <ChevronRight className="ml-2 h-4 w-4" />
