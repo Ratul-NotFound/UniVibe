@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
@@ -23,16 +23,12 @@ const Search = () => {
     setLoading(true);
     try {
       const usersRef = collection(db, 'users');
-      let q = query(
-        usersRef,
-        where('isVerified', '==', true),
-        limit(40)
-      );
-
-      // Apply department filter if selected
+      const constraints = [where('isVerified', '==', true)];
       if (selectedDept) {
-        q = query(usersRef, where('department', '==', selectedDept), limit(40));
+        constraints.push(where('department', '==', selectedDept));
       }
+
+      const q = query(usersRef, ...constraints);
 
       const querySnapshot = await getDocs(q);
       const fetched: any[] = [];
@@ -56,19 +52,9 @@ const Search = () => {
         }
       });
 
-      // Simple search client-side
-      const filtered = fetched.filter(p => 
-        ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.department || '').toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        && (!selectedYear || p.year === selectedYear)
-        && (!selectedLookingFor || p.lookingFor === selectedLookingFor)
-      );
-
-      // Sort by match score
-      filtered.sort((a, b) => b.matchScore - a.matchScore);
-      setProfiles(filtered);
+      // Keep the broad result set in memory, then apply local filters instantly.
+      fetched.sort((a, b) => b.matchScore - a.matchScore);
+      setProfiles(fetched);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -78,12 +64,34 @@ const Search = () => {
 
   useEffect(() => {
     fetchBrowsingProfiles();
-  }, [user, userData, selectedDept, selectedYear, selectedLookingFor, searchTerm]);
+  }, [user, userData, selectedDept]);
+
+  const filteredProfiles = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    return profiles.filter((p) => {
+      const matchesSearch =
+        !term ||
+        (p.name || '').toLowerCase().includes(term) ||
+        (p.username || '').toLowerCase().includes(term) ||
+        (p.department || '').toLowerCase().includes(term) ||
+        (p.hometown || '').toLowerCase().includes(term) ||
+        (p.currentCity || '').toLowerCase().includes(term);
+
+      const matchesYear = !selectedYear || p.year === selectedYear;
+      const matchesLookingFor = !selectedLookingFor || p.lookingFor === selectedLookingFor;
+
+      return matchesSearch && matchesYear && matchesLookingFor;
+    });
+  }, [profiles, searchTerm, selectedYear, selectedLookingFor]);
 
   return (
     <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">
       <div className="mb-6 flex flex-col gap-4">
         <h1 className="text-3xl font-black text-zinc-900 dark:text-white">Browse</h1>
+        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Only verified profiles are shown in search results.
+        </p>
         
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -190,8 +198,8 @@ const Search = () => {
             <div key={i} className="aspect-[3/4] animate-pulse rounded-card bg-zinc-100 dark:bg-zinc-900" />
           ))}
         </div>
-      ) : profiles.length > 0 ? (
-        <ProfileGrid profiles={profiles} onProfileClick={(p) => console.log(p)} />
+      ) : filteredProfiles.length > 0 ? (
+        <ProfileGrid profiles={filteredProfiles} onProfileClick={(p) => console.log(p)} />
       ) : (
         <div className="mt-20 text-center">
           <p className="text-zinc-500 font-medium">No students found matching your search.</p>
