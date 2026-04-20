@@ -110,7 +110,7 @@ export const useSocial = () => {
 
       // Verify Session
       const tokenResult = await user.getIdTokenResult();
-      const isDiuEmail = /@diu\.edu\.bd$/i.test(tokenResult.claims.email || user.email || '');
+      const isDiuEmail = /@diu\.edu\.bd$/i.test((tokenResult.claims.email as string) || user.email || '');
       if (!tokenResult.claims.email_verified || !isDiuEmail) {
         toast.error('Verified DIU student account required.');
         return { success: false, verificationRequired: true };

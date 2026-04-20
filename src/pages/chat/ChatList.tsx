@@ -28,7 +28,8 @@ const NoteAvatar = ({
   photoURL, 
   name, 
   isSelf, 
-  ringClass 
+  ringClass,
+  onClick,
 }: { 
   uid: string; 
   photoURL?: string | null; 
@@ -460,7 +461,7 @@ const ChatList = () => {
       <Modal
         isOpen={Boolean(selectedUserForProfile)}
         onClose={() => setSelectedUserForProfile(null)}
-        padding={false}
+        title="Profile Preview"
       >
         {selectedUserForProfile && (
           <div className="h-[500px]">

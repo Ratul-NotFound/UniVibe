@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
@@ -276,12 +276,12 @@ const Matches = () => {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="xs" variant="ghost" className="rounded-full h-8 w-8 p-0" onClick={() => handleDecline(req)}>
-                        <X size={16} className="text-zinc-400" />
-                      </Button>
-                      <Button size="xs" className="rounded-full px-3 h-8 text-[11px] font-black" onClick={() => handleAccept(req)}>
-                        Accept
-                      </Button>
+                       <Button size="sm" variant="ghost" className="rounded-full h-8 w-8 p-0" onClick={() => handleDecline(req)}>
+                         <X size={16} className="text-zinc-400" />
+                       </Button>
+                       <Button size="sm" className="rounded-full px-3 h-8 text-[11px] font-black" onClick={() => handleAccept(req)}>
+                         Accept
+                       </Button>
                     </div>
                   </div>
                 ))
@@ -327,7 +327,7 @@ const Matches = () => {
                         </div>
                       </div>
                     </div>
-                    <Button size="xs" variant="ghost" className="h-8 text-[11px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20" onClick={() => handleCancel(req)}>Cancel</Button>
+                    <Button size="sm" variant="ghost" className="h-8 text-[11px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20" onClick={() => handleCancel(req)}>Cancel</Button>
                   </div>
                 ))
               ) : (
@@ -347,7 +347,7 @@ const Matches = () => {
       <Modal
         isOpen={Boolean(selectedUserForProfile)}
         onClose={() => setSelectedUserForProfile(null)}
-        padding={false}
+        title="Profile Details"
       >
         {selectedUserForProfile && (
           <div className="h-[500px]">

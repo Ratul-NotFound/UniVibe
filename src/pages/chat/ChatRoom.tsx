@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
-import { ChevronLeft, Send, Image, MoreVertical, Sparkles } from 'lucide-react';
+import { ChevronLeft, Send, Image, MoreVertical, Sparkles, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createAppNotification } from '@/lib/notifications';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
@@ -335,7 +335,7 @@ const ChatRoom = () => {
       <Modal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        padding={false}
+        title="Profile Details"
       >
         {recipient && (
           <div className="h-[500px]">
