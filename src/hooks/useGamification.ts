@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   doc, onSnapshot, updateDoc, increment, 
   setDoc, getDoc, serverTimestamp 
@@ -33,9 +33,8 @@ export const useGamification = () => {
         setUniCoins(data.uniCoins || 0);
         setVibePoints(data.vibePoints || 0);
       } else {
-        // Initialize user economy if it doesn't exist
         setDoc(userRef, {
-          uniCoins: 100, // Starter coins
+          uniCoins: 100,
           vibePoints: 0,
           createdAt: serverTimestamp()
         }, { merge: true });
@@ -47,39 +46,6 @@ export const useGamification = () => {
     });
 
     return () => unsubscribe();
-  }, [user]);
-
-  const spendCoins = useCallback(async (amount: number) => {
-    if (!user) return false;
-    if (uniCoins < amount) {
-      toast.error('Not enough UniCoins!');
-      return false;
-    }
-
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        uniCoins: increment(-amount)
-      });
-      return true;
-    } catch (error) {
-      toast.error('Transaction failed');
-      return false;
-    }
-  }, [user, uniCoins]);
-
-  const addVibePoints = useCallback(async (amount: number) => {
-    if (!user) return;
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        vibePoints: increment(amount),
-        // Logic: Every 500 vibe points grants bonus coins
-        uniCoins: increment(Math.floor(amount / 10)) 
-      });
-    } catch (error) {
-      console.error("Error adding vibe points:", error);
-    }
   }, [user]);
 
   const addCoins = useCallback(async (amount: number) => {
@@ -94,12 +60,91 @@ export const useGamification = () => {
     }
   }, [user]);
 
+  const addVibePoints = useCallback(async (amount: number) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        vibePoints: increment(amount),
+        uniCoins: increment(Math.floor(amount / 10)) 
+      });
+    } catch (error) {
+      console.error("Error adding vibe points:", error);
+    }
+  }, [user]);
+
+  const spendCoins = useCallback(async (amount: number) => {
+    if (!user) return false;
+    if (uniCoins < amount) {
+      toast.error('Not enough UniCoins!');
+      return false;
+    }
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        uniCoins: increment(-amount)
+      });
+      return true;
+    } catch (error) {
+      toast.error('Transaction failed');
+      return false;
+    }
+  }, [user, uniCoins]);
+
+  const acceptMission = useCallback(async (missionId: string) => {
+    if (!user) return;
+    try {
+      const missionRef = doc(db, 'users', user.uid, 'missions', missionId);
+      await updateDoc(missionRef, {
+        status: 'Active',
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Mission Started!', { icon: '🎯' });
+    } catch (error) {
+      console.error("Error accepting mission:", error);
+    }
+  }, [user]);
+
+  const updateMissionProgress = useCallback(async (missionId: string, amount: number = 1) => {
+    if (!user) return;
+    try {
+      const missionRef = doc(db, 'users', user.uid, 'missions', missionId);
+      const missionSnap = await getDoc(missionRef);
+      
+      if (!missionSnap.exists()) return;
+      
+      const data = missionSnap.data();
+      if (data.status === 'Completed') return;
+      if (data.status !== 'Active') return; // Must accept first
+
+      const newProgress = data.progress + amount;
+      const isCompleted = newProgress >= data.total;
+
+      await updateDoc(missionRef, {
+        progress: newProgress,
+        status: isCompleted ? 'Completed' : data.status
+      });
+
+      if (isCompleted) {
+        await Promise.all([
+          addCoins(data.reward || 0),
+          addVibePoints(Math.floor((data.reward || 0) / 2))
+        ]);
+        toast.success(`Mission Complete: ${data.title}!`, { icon: '🏆' });
+      }
+    } catch (error) {
+      console.error("Error updating mission progress:", error);
+    }
+  }, [user, addCoins, addVibePoints]);
+
   return {
     uniCoins,
     vibePoints,
     loading,
     spendCoins,
     addVibePoints,
-    addCoins
+    addCoins,
+    acceptMission,
+    updateMissionProgress
   };
 };

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Flame, Coins, Plus, Radio, MapPin, Gamepad2, Laptop, 
@@ -27,7 +27,7 @@ const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boo
 
 const Discovery = () => {
   const { user, userData } = useAuth();
-  const { uniCoins, vibePoints, spendCoins, addVibePoints } = useGamification();
+  const { uniCoins, vibePoints, spendCoins, addVibePoints, updateMissionProgress, acceptMission } = useGamification();
   const navigate = useNavigate();
 
   // Navigation
@@ -50,27 +50,15 @@ const Discovery = () => {
     }
 
     const qPulse = query(
-      collection(db, 'notifications'),
-      where('toUid', '==', user.uid),
-      limit(50)
+      collection(db, 'pulses'),
+      orderBy('createdAt', 'desc'),
+      limit(20)
     );
     const qBattle = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(10));
     const unsubPulse = onSnapshot(
       qPulse,
       (s) => {
-        const rows = s.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const aTs = typeof (a as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis === 'function'
-              ? (a as { createdAt?: { toMillis?: () => number } }).createdAt!.toMillis!()
-              : 0;
-            const bTs = typeof (b as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis === 'function'
-              ? (b as { createdAt?: { toMillis?: () => number } }).createdAt!.toMillis!()
-              : 0;
-            return bTs - aTs;
-          })
-          .slice(0, 15);
-        setPulses(rows);
+        setPulses(s.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       (error) => {
         console.error('Pulse listener error:', error);
@@ -121,9 +109,9 @@ const Discovery = () => {
       (snapshot) => {
         if (snapshot.empty) {
           const defaultMissions = [
-            { id: 'q1', title: 'Campus Ghost', status: 'Infiltrate', reward: 150, progress: 0, total: 1, type: 'ghost' },
-            { id: 'q2', title: 'Opinion Leader', status: 'Debate', reward: 200, progress: 0, total: 3, type: 'vote' },
-            { id: 'q3', title: 'Vibe Architect', status: 'Broadcast', reward: 100, progress: 0, total: 1, type: 'pulse' }
+            { id: 'q1', title: 'Campus Ghost', status: 'Available', reward: 150, progress: 0, total: 1, type: 'ghost' },
+            { id: 'q2', title: 'Opinion Leader', status: 'Available', reward: 200, progress: 0, total: 3, type: 'vote' },
+            { id: 'q3', title: 'Vibe Architect', status: 'Available', reward: 100, progress: 0, total: 1, type: 'pulse' }
           ];
           defaultMissions.forEach(m => setDoc(doc(db, 'users', user.uid, 'missions', m.id), m));
         } else {
@@ -137,6 +125,26 @@ const Discovery = () => {
     );
     return () => unsubMissions();
   }, [user]);
+
+  const handlePostPulse = async () => {
+    if (!user || !newPulse.trim()) return;
+    try {
+      await addDoc(collection(db, 'pulses'), {
+        content: newPulse,
+        fromUid: user.uid,
+        fromName: userData?.name || 'DIU Student',
+        fromPhotoURL: userData?.photoURL || null,
+        createdAt: serverTimestamp()
+      });
+      await updateMissionProgress('q3'); // Vibe Architect
+      toast.success('Broadcast sent to campus!');
+      setNewPulse('');
+      setIsPosting(false);
+    } catch (error) {
+      console.error('Failed to post pulse:', error);
+      toast.error('Failed to broadcast pulse');
+    }
+  };
 
   const handleUpdateVibe = async (vibe: string, hasRetried = false) => {
     if (!user || !isEligibleDiuSession(user)) {
@@ -164,14 +172,34 @@ const Discovery = () => {
   };
 
   const handleRollDice = async () => {
-    if (isRolling) return;
+    if (isRolling || !user) return;
     setIsRolling(true);
-    // Logic for Mystery Meet
-    setTimeout(() => {
+    
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('currentVibe', '!=', null), limit(20));
+      const snapshot = await getDocs(q);
+      
+      const otherUsers = snapshot.docs
+        .filter(d => d.id !== user.uid)
+        .map(d => ({ id: d.id, ...d.data() }));
+
+      setTimeout(async () => {
+        setIsRolling(false);
+        if (otherUsers.length > 0) {
+          const randomUser: any = otherUsers[Math.floor(Math.random() * otherUsers.length)];
+          toast(`Found someone: ${randomUser.name}`, { icon: '🎲' });
+          await updateMissionProgress('q1'); // Campus Ghost
+          navigate(`/search?reveal=${randomUser.id}`); 
+        } else {
+          toast('No other active vibers found. Try later!', { icon: '🎲' });
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Dice roll error:', error);
       setIsRolling(false);
-      toast('Searching for a match...', { icon: '🎲' });
-      navigate('/search'); // Redirect to search to find someone
-    }, 1500);
+      toast.error('Mystery meet failed');
+    }
   };
 
   const handleVote = async (battleId: string, side: 'left' | 'right') => {
@@ -181,6 +209,7 @@ const Discovery = () => {
       [`${side}.votes`]: increment(1),
       voters: arrayUnion(user.uid)
     });
+    await updateMissionProgress('q2'); // Opinion Leader
     toast.success('Vote Cast!', { icon: '⚡' });
   };
 
@@ -233,7 +262,7 @@ const Discovery = () => {
                         <textarea value={newPulse} onChange={e => setNewPulse(e.target.value)} placeholder="What's happening?" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-sm font-medium focus:ring-1 focus:ring-primary outline-none min-h-[100px]" />
                         <div className="flex gap-2">
                           <Button onClick={() => setIsPosting(false)} className="flex-1 h-12 bg-zinc-800 text-xs font-black uppercase tracking-widest rounded-xl text-white">Cancel</Button>
-                          <Button onClick={() => { toast.success('Pulse Broadcasted!'); setIsPosting(false); setNewPulse(''); }} className="flex-1 h-12 bg-primary text-xs font-black uppercase tracking-widest rounded-xl text-white">Send</Button>
+                          <Button onClick={handlePostPulse} className="flex-1 h-12 bg-primary text-xs font-black uppercase tracking-widest rounded-xl text-white">Send</Button>
                         </div>
                       </div>
                     )}
@@ -243,11 +272,19 @@ const Discovery = () => {
                <div className="space-y-4">
                   {pulses.map((p, i) => (
                     <div key={i} className="bg-zinc-900/40 border border-white/[0.02] p-6 rounded-[2.5rem] flex gap-4 backdrop-blur-3xl">
-                       <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center font-black italic text-primary text-xs">{p.fromName?.[0]}</div>
+                       <div className="h-10 w-10 overflow-hidden rounded-full bg-zinc-800 border border-white/5">
+                          {p.fromPhotoURL ? (
+                            <img src={p.fromPhotoURL} alt={p.fromName} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-black italic text-primary text-xs">{p.fromName?.[0]}</div>
+                          )}
+                       </div>
                        <div className="flex-1">
                           <div className="flex justify-between items-center mb-1">
                              <span className="text-[11px] font-black text-primary uppercase tracking-widest">{p.fromName}</span>
-                             <span className="text-[9px] font-bold text-zinc-600 uppercase">Just Now</span>
+                             <span className="text-[9px] font-bold text-zinc-600 uppercase">
+                               {p.createdAt?.toMillis ? new Date(p.createdAt.toMillis()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                             </span>
                           </div>
                           <p className="text-sm text-zinc-300 font-medium leading-relaxed italic opacity-80">"{p.content}"</p>
                        </div>
@@ -295,7 +332,7 @@ const Discovery = () => {
                   <motion.div animate={isRolling ? { rotate: 360 } : {}} transition={{ repeat: Infinity, duration: 0.5 }}>
                      <Dice5 size={60} className="mx-auto mb-4 text-white drop-shadow-[0_0_20px_white]" />
                   </motion.div>
-                  <h3 className="text-2xl font-black uppercase italic italic tracking-tighter text-white mb-2">Mystery Social</h3>
+                  <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white mb-2">Mystery Social</h3>
                   <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-8">Pairing with someone active nearby...</p>
                   <div className="px-8 py-4 bg-white text-black rounded-[2rem] text-[10px] font-black uppercase tracking-widest inline-block">
                     {isRolling ? 'Scanning...' : 'Roll the Dice'}
@@ -329,7 +366,18 @@ const Discovery = () => {
                        </div>
                        <div className="mt-4 flex justify-between items-center text-[9px] font-black text-zinc-600 uppercase">
                           <span>Progress {m.progress}/{m.total}</span>
-                          <span className="text-primary flex items-center gap-1 cursor-pointer">Accept Mission <ChevronRight size={10} /></span>
+                          {m.status !== 'Completed' && m.status !== 'Active' ? (
+                            <button 
+                              onClick={() => acceptMission(m.id)}
+                              className="text-primary flex items-center gap-1 cursor-pointer hover:underline bg-transparent border-none outline-none"
+                            >
+                              Accept Mission <ChevronRight size={10} />
+                            </button>
+                          ) : (
+                            <span className={m.status === 'Completed' ? 'text-emerald-500' : 'text-primary animate-pulse'}>
+                              {m.status}
+                            </span>
+                          )}
                        </div>
                     </div>
                   ))}
@@ -344,13 +392,21 @@ const Discovery = () => {
                     <h4 className="text-2xl font-black italic uppercase mb-8 text-center tracking-tighter">{b.title}</h4>
                     <div className="grid grid-cols-2 gap-4 relative">
                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-black border-[6px] border-[#020202] h-14 w-14 rounded-full flex items-center justify-center font-black italic text-[11px] shadow-2xl">VS</div>
-                       <button onClick={() => handleVote(b.id, 'left')} className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.left.color} flex flex-col items-center justify-center border border-white/10 active:scale-95 transition-all shadow-xl`}>
+                       <button 
+                         onClick={() => handleVote(b.id, 'left')} 
+                         className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.left.color} flex flex-col items-center justify-center border transition-all shadow-xl ${b.voters?.includes(user?.uid) ? 'border-primary ring-2 ring-primary/20 bg-zinc-800/10' : 'active:scale-95 border-white/10'}`}
+                       >
                           <span className="text-5xl font-black mb-1">{b.left.votes}</span>
                           <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{b.left.name}</span>
+                          {b.voters?.includes(user?.uid) && <span className="text-[8px] font-bold mt-1 text-primary">VOTED</span>}
                        </button>
-                       <button onClick={() => handleVote(b.id, 'right')} className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.right.color} flex flex-col items-center justify-center border border-white/10 active:scale-95 transition-all shadow-xl`}>
+                       <button 
+                         onClick={() => handleVote(b.id, 'right')} 
+                         className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.right.color} flex flex-col items-center justify-center border transition-all shadow-xl ${b.voters?.includes(user?.uid) ? 'border-primary ring-2 ring-primary/20 bg-zinc-800/10' : 'active:scale-95 border-white/10'}`}
+                       >
                           <span className="text-5xl font-black mb-1">{b.right.votes}</span>
                           <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{b.right.name}</span>
+                          {b.voters?.includes(user?.uid) && <span className="text-[8px] font-bold mt-1 text-primary">VOTED</span>}
                        </button>
                     </div>
                  </div>
@@ -376,9 +432,19 @@ const Discovery = () => {
                           <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{item.desc}</p>
                        </div>
                     </div>
-                    <button className="h-12 px-6 bg-white text-black rounded-2xl font-black text-xs hover:bg-primary hover:text-white transition-colors">
-                       {item.price}
-                    </button>
+                     <button 
+                       onClick={() => {
+                         if (uniCoins >= item.price) {
+                           spendCoins(item.price);
+                           toast.success(`Purchased: ${item.title}!`, { icon: '🎉' });
+                         } else {
+                           toast.error('Insufficient UniCoins');
+                         }
+                       }}
+                       className="h-12 px-6 bg-white text-black rounded-2xl font-black text-xs hover:bg-primary hover:text-white transition-colors"
+                     >
+                        {item.price}
+                     </button>
                  </div>
                ))}
             </motion.div>

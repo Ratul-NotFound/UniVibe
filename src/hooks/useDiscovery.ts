@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { createAppNotification } from '@/lib/notifications';
+import { useSocial } from './useSocial';
 
 type DiscoveryProfile = {
   id: string;
@@ -20,6 +21,7 @@ type DiscoveryProfile = {
 
 export const useDiscovery = () => {
   const { user, userData } = useAuth();
+  const { connect, pass } = useSocial();
   const [profiles, setProfiles] = useState<DiscoveryProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,157 +58,18 @@ export const useDiscovery = () => {
     }
   };
 
-  const registerSwipe = async (
-    targetProfile: DiscoveryProfile,
-    direction: 'like' | 'pass',
-    hasRetried = false
-  ) => {
-    if (!user) return { isMatch: false, requestSent: false };
-    if (!user.emailVerified) {
-      return { isMatch: false, requestSent: false, verificationRequired: true };
-    }
+  const likeProfile = async (profile: DiscoveryProfile) => {
+    if (!user) return;
+    const result = await connect(profile);
+    return {
+      isMatch: result?.isMatch || false,
+      requestSent: result?.requestSent || false
+    };
+  };
 
-    const tokenResult = await user.getIdTokenResult();
-    const tokenEmail = String(tokenResult.claims.email || user.email || '');
-    const tokenVerified = tokenResult.claims.email_verified === true;
-    const isDiuEmail = /@diu\.edu\.bd$/i.test(tokenEmail);
-
-    if (!tokenVerified || !isDiuEmail) {
-      return { isMatch: false, requestSent: false, verificationRequired: true };
-    }
-
-    try {
-
-      await setDoc(
-        doc(db, 'swipes', getSwipeDocId(user.uid, targetProfile.id)),
-        {
-          fromUid: user.uid,
-          toUid: targetProfile.id,
-          direction,
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      if (direction !== 'like') {
-        return { isMatch: false, requestSent: false };
-      }
-
-      const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, targetProfile.id));
-      const incomingRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
-
-      const safeGetRequestDoc = async (refToRead: typeof outgoingRequestRef) => {
-        try {
-          return await getDoc(refToRead);
-        } catch (readErr: any) {
-          if (readErr?.code === 'permission-denied') {
-            // Some deployed rules deny get on non-existing docs; treat as absent and continue.
-            return null;
-          }
-          throw readErr;
-        }
-      };
-
-      const [outgoingSnap, incomingSnap] = await Promise.all([
-        safeGetRequestDoc(outgoingRequestRef),
-        safeGetRequestDoc(incomingRequestRef),
-      ]);
-
-      if (outgoingSnap?.exists()) {
-        const outgoingStatus = String(outgoingSnap.data()?.status || '');
-
-        if (outgoingStatus === 'pending') {
-          return { isMatch: false, requestSent: false, alreadyRequested: true };
-        }
-
-        if (outgoingStatus === 'accepted') {
-          return { isMatch: true, requestSent: false, alreadyMatched: true };
-        }
-
-        if (outgoingStatus !== 'pending' && outgoingStatus !== 'accepted') {
-          await updateDoc(outgoingRequestRef, {
-            status: 'pending',
-            fromName: userData?.name || user.displayName || 'Someone',
-            fromPhotoURL: userData?.photoURL || user.photoURL || null,
-            updatedAt: serverTimestamp(),
-          });
-
-          try {
-            await createAppNotification({
-              toUid: targetProfile.id,
-              fromUid: user.uid,
-              type: 'request',
-              title: 'New connection request',
-              body: `${userData?.name || 'A student'} sent you a request.`,
-              link: '/matches',
-              metadata: {
-                fromUid: user.uid,
-                resend: true,
-                previousStatus: outgoingStatus || 'unknown',
-              },
-            });
-          } catch (notifyErr) {
-            console.warn('Request sent but notification failed:', notifyErr);
-          }
-
-          return { isMatch: false, requestSent: true, resent: true };
-        }
-      }
-
-      if (incomingSnap?.exists()) {
-        const incomingStatus = String(incomingSnap.data()?.status || '');
-        if (incomingStatus === 'pending') {
-          return { isMatch: false, requestSent: false, incomingPending: true };
-        }
-        if (incomingStatus === 'accepted') {
-          return { isMatch: true, requestSent: false, alreadyMatched: true };
-        }
-      }
-
-      await setDoc(
-        outgoingRequestRef,
-        {
-          fromUid: user.uid,
-          toUid: targetProfile.id,
-          status: 'pending',
-          fromName: userData?.name || user.displayName || 'Someone',
-          fromPhotoURL: userData?.photoURL || user.photoURL || null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: false }
-      );
-
-      try {
-        await createAppNotification({
-          toUid: targetProfile.id,
-          fromUid: user.uid,
-          type: 'request',
-          title: 'New connection request',
-          body: `${userData?.name || 'A student'} sent you a request.`,
-          link: '/matches',
-          metadata: {
-            fromUid: user.uid,
-          },
-        });
-      } catch (notifyErr) {
-        console.warn('Request sent but notification failed:', notifyErr);
-      }
-
-      return { isMatch: false, requestSent: true };
-    } catch (err: any) {
-      if (!hasRetried && err?.code === 'permission-denied') {
-        try {
-          await user.reload();
-          await user.getIdToken(true);
-          return await registerSwipe(targetProfile, direction, true);
-        } catch (refreshErr) {
-          console.error('Swipe token refresh failed:', refreshErr);
-        }
-      }
-
-      throw err;
-    }
+  const passProfile = async (profile: DiscoveryProfile) => {
+    if (!user) return;
+    await pass(profile.id);
   };
 
   const fetchProfiles = async (hasRetried = false) => {
@@ -329,7 +192,7 @@ export const useDiscovery = () => {
     error,
     refresh: fetchProfiles,
     setProfiles,
-    likeProfile: (profile: DiscoveryProfile) => registerSwipe(profile, 'like'),
-    passProfile: (profile: DiscoveryProfile) => registerSwipe(profile, 'pass'),
+    likeProfile,
+    passProfile,
   };
 };

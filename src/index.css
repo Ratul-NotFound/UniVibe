@@ -54,3 +54,20 @@
 .dark .glass {
   @apply bg-zinc-900/70 backdrop-blur-md border border-white/5;
 }
+
+/* Gradient Animation for Soulmates */
+@keyframes gradient-xy {
+  0%, 100% {
+    background-size: 400% 400%;
+    background-position: left center;
+  }
+  50% {
+    background-size: 200% 200%;
+    background-position: right center;
+  }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 3s ease infinite;
+}
+

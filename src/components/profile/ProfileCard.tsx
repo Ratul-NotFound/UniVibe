@@ -1,5 +1,4 @@
-import React from 'react';
-import { User as UserIcon, MapPin, GraduationCap, Briefcase, Sparkles, CalendarDays } from 'lucide-react';
+import { User as UserIcon, MapPin, GraduationCap, Briefcase, Sparkles, CalendarDays, Phone, CheckCircle } from 'lucide-react';
 import MatchScoreBadge from './MatchScoreBadge';
 
 interface ProfileCardProps {
@@ -26,9 +25,17 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
   };
 
   const age = getAge(user.birthDate);
+  const showAge = user.privacy?.birthdate !== 'private';
+  const showPhone = user.privacy?.phone === 'public' || (user.privacy?.phone === 'friends' && user.isFriend);
 
   return (
-    <div className={`relative h-full w-full overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-zinc-900 ${className || ''}`}>
+    <div className={`group relative h-full w-full overflow-hidden rounded-[2.5rem] bg-white shadow-2xl transition-all hover:shadow-primary/10 dark:bg-zinc-900 ${className || ''}`}>
+      {/* Public Preview Badge */}
+      {!matchScore && (
+        <div className="absolute left-6 top-6 z-50 rounded-full bg-black/40 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-md ring-1 ring-white/20">
+          Public Preview
+        </div>
+      )}
       {/* Background/Photo Area */}
       <div className="relative h-[70%] w-full bg-zinc-100 dark:bg-zinc-800">
         {user.photoURL ? (
@@ -50,14 +57,29 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
         <div className="absolute bottom-4 left-4 right-4 text-white">
           <div className="flex items-end justify-between">
             <div>
-              <h3 className="text-3xl font-black tracking-tight">
-                {user.name}, {user.year}
-              </h3>
-              <div className="mt-1 flex items-center gap-1 text-sm font-medium opacity-90">
-                <GraduationCap size={16} />
-                {user.department}
+              <div className="flex items-center gap-2">
+                <h3 className="text-3xl font-black tracking-tight">
+                  {user.name}{showAge && age ? `, ${age}` : ''}
+                </h3>
+                <CheckCircle size={18} className="fill-emerald-500/20 text-emerald-500" />
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold opacity-90">
+                <GraduationCap size={16} className="text-primary-foreground/70" />
+                {user.department} • {user.year} Year
               </div>
             </div>
+
+            {/* Live Vibe Badge */}
+            {user.currentVibe && (
+              <div className="absolute top-4 right-4 animate-in fade-in zoom-in duration-500">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl`}>
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                    {user.currentVibe}
+                  </span>
+                </div>
+              </div>
+            )}
             
             {matchScore !== undefined && (
               <div className="mb-2">
@@ -72,17 +94,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
       <div className="p-5 pb-8">
         <div className="flex flex-wrap items-center gap-2">
           {user.lookingFor && (
-            <span className="mb-2 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary dark:bg-primary/20">
+            <span className="mb-2 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary dark:bg-primary/20">
               Looking for {user.lookingFor}
             </span>
           )}
-          {age && (
-            <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              <CalendarDays size={12} /> {age} yrs
-            </span>
-          )}
           {user.gender && (
-            <span className="mb-2 inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <span className="mb-2 inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {user.gender}
             </span>
           )}
@@ -92,11 +109,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
           {user.bio || "No bio yet. Ask me something!"}
         </p>
 
-        {(user.currentCity || user.hometown || user.engagementType) && (
-          <div className="mt-3 space-y-1.5">
+        {(user.currentCity || user.hometown || user.engagementType || (showPhone && user.phone)) && (
+          <div className="mt-4 space-y-2">
             {(user.currentCity || user.hometown) && (
-              <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                <MapPin size={13} />
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                <MapPin size={14} className="text-primary/60" />
                 <span>
                   {user.currentCity ? `Lives in ${user.currentCity}` : ''}
                   {user.currentCity && user.hometown ? ' • ' : ''}
@@ -104,11 +121,17 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
                 </span>
               </div>
             )}
+            {showPhone && user.phone && (
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                <Phone size={14} className="text-primary" />
+                <span>{user.phone}</span>
+              </div>
+            )}
             {user.engagementType && user.engagementType !== 'None' && (
-              <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                <Briefcase size={13} />
-                <span>
-                  {user.engagementType}
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                <Briefcase size={14} className="text-secondary/60" />
+                <span className="capitalize">
+                  {user.engagementType.toLowerCase()}
                   {user.engagementDetails ? ` • ${user.engagementDetails}` : ''}
                 </span>
               </div>

@@ -21,18 +21,22 @@ import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
 import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { createAppNotification } from '@/lib/notifications';
 import { toast } from 'react-hot-toast';
+import { useSocial } from '@/hooks/useSocial';
 
 const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null) => {
   if (!user?.email) return false;
   return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
 };
 
+import { useLocation } from 'react-router-dom';
+
 const Search = () => {
   const { user, userData } = useAuth();
+  const { connect, pass, actionLoading } = useSocial();
+  const location = useLocation();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,10 +45,6 @@ const Search = () => {
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedLookingFor, setSelectedLookingFor] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const getSwipeDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
-  const getRequestDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
 
   const closeProfileModal = () => {
     if (actionLoading) return;
@@ -53,212 +53,17 @@ const Search = () => {
 
   const handleProfilePass = async () => {
     if (!user || !selectedProfile) return;
-
-    try {
-      setActionLoading(true);
-      await setDoc(
-        doc(db, 'swipes', getSwipeDocId(user.uid, selectedProfile.id)),
-        {
-          fromUid: user.uid,
-          toUid: selectedProfile.id,
-          direction: 'pass',
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      toast('Profile skipped.', { icon: '👋' });
-      setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
-      setSelectedProfile(null);
-    } catch (error) {
-      console.error('Pass action failed:', error);
-      toast.error('Could not skip this profile. Please try again.');
-    } finally {
-      setActionLoading(false);
-    }
+    await pass(selectedProfile.id);
+    setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
+    setSelectedProfile(null);
   };
 
-  const handleProfileConnect = async (hasRetried = false) => {
-    if (!user || !userData || !selectedProfile) return;
-
-    let failedStep: 'token-claims' | 'swipe-write' | 'request-read' | 'request-write' | 'notification-write' = 'token-claims';
-
-    try {
-      setActionLoading(true);
-
-      const tokenResult = await user.getIdTokenResult();
-      const tokenEmail = String(tokenResult.claims.email || user.email || '');
-      const tokenVerified = tokenResult.claims.email_verified === true;
-      const isDiuEmail = /@diu\.edu\.bd$/i.test(tokenEmail);
-
-      if (!tokenVerified || !isDiuEmail) {
-        toast.error('Session claims are not ready for student actions. Sign out and sign in again with your verified DIU email.');
-        console.error('Connect blocked by token claims:', {
-          tokenEmail,
-          tokenVerified,
-          isDiuEmail,
-        });
-        return;
-      }
-
-      failedStep = 'swipe-write';
-      await setDoc(
-        doc(db, 'swipes', getSwipeDocId(user.uid, selectedProfile.id)),
-        {
-          fromUid: user.uid,
-          toUid: selectedProfile.id,
-          direction: 'like',
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, selectedProfile.id));
-      const incomingRequestRef = doc(db, 'requests', getRequestDocId(selectedProfile.id, user.uid));
-
-      failedStep = 'request-read';
-      const safeGetRequestDoc = async (refToRead: typeof outgoingRequestRef) => {
-        try {
-          return await getDoc(refToRead);
-        } catch (readErr: any) {
-          if (readErr?.code === 'permission-denied') {
-            // Some deployed rules deny get on non-existing docs; treat as absent and continue.
-            return null;
-          }
-          throw readErr;
-        }
-      };
-
-      const [outgoingSnap, incomingSnap] = await Promise.all([
-        safeGetRequestDoc(outgoingRequestRef),
-        safeGetRequestDoc(incomingRequestRef),
-      ]);
-
-      if (outgoingSnap?.exists()) {
-        const outgoingStatus = String(outgoingSnap.data()?.status || '');
-
-        if (outgoingStatus === 'pending') {
-          toast('Request already pending.', { icon: '⏳' });
-          setSelectedProfile(null);
-          return;
-        }
-
-        if (outgoingStatus === 'accepted') {
-          toast('You are already connected.', { icon: '✅' });
-          setSelectedProfile(null);
-          return;
-        }
-
-        if (outgoingStatus !== 'pending' && outgoingStatus !== 'accepted') {
-          failedStep = 'request-write';
-          await updateDoc(outgoingRequestRef, {
-            status: 'pending',
-            fromName: userData?.name || user.displayName || 'Someone',
-            fromPhotoURL: userData?.photoURL || user.photoURL || null,
-            updatedAt: serverTimestamp(),
-          });
-
-          try {
-            failedStep = 'notification-write';
-            await createAppNotification({
-              toUid: selectedProfile.id,
-              fromUid: user.uid,
-              type: 'request',
-              title: 'New connection request',
-              body: `${userData?.name || 'A student'} sent you a request.`,
-              link: '/matches',
-              metadata: {
-                fromUid: user.uid,
-                resend: true,
-                previousStatus: outgoingStatus || 'unknown',
-              },
-            });
-          } catch (notifyErr) {
-            console.warn('Request sent but notification failed:', notifyErr);
-          }
-
-          toast.success(`Request sent to ${selectedProfile.name || 'student'}!`, { icon: '📩' });
-          setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
-          setSelectedProfile(null);
-          return;
-        }
-      }
-
-      if (incomingSnap?.exists()) {
-        const incomingStatus = String(incomingSnap.data()?.status || '');
-        if (incomingStatus === 'pending') {
-          toast('They already requested you. Accept from Matches.', { icon: '💌' });
-          setSelectedProfile(null);
-          return;
-        }
-        if (incomingStatus === 'accepted') {
-          toast('You are already connected.', { icon: '✅' });
-          setSelectedProfile(null);
-          return;
-        }
-      }
-
-      failedStep = 'request-write';
-      await setDoc(
-        outgoingRequestRef,
-        {
-          fromUid: user.uid,
-          toUid: selectedProfile.id,
-          status: 'pending',
-          fromName: userData?.name || user.displayName || 'Someone',
-          fromPhotoURL: userData?.photoURL || user.photoURL || null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: false }
-      );
-
-      try {
-        failedStep = 'notification-write';
-        await createAppNotification({
-          toUid: selectedProfile.id,
-          fromUid: user.uid,
-          type: 'request',
-          title: 'New connection request',
-          body: `${userData?.name || 'A student'} sent you a request.`,
-          link: '/matches',
-          metadata: {
-            fromUid: user.uid,
-          },
-        });
-      } catch (notifyErr) {
-        console.warn('Request sent but notification failed:', notifyErr);
-      }
-
-      toast.success(`Request sent to ${selectedProfile.name || 'student'}!`, { icon: '📩' });
+  const handleProfileConnect = async () => {
+    if (!selectedProfile) return;
+    const result = await connect(selectedProfile);
+    if (result.success) {
       setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
       setSelectedProfile(null);
-    } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'permission-denied' && !hasRetried) {
-        try {
-          await user.reload();
-          await user.getIdToken(true);
-          await handleProfileConnect(true);
-          return;
-        } catch (refreshErr) {
-          console.error('Search connect token refresh failed:', refreshErr);
-        }
-      }
-
-      if (code === 'permission-denied') {
-        toast.error(`Request blocked by permissions at ${failedStep}.`);
-      } else {
-        toast.error('Could not send request. Please try again.');
-      }
-      console.error('Connect action failed:', {
-        failedStep,
-        code,
-        message: err?.message,
-        err,
-      });
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -338,6 +143,19 @@ const Search = () => {
   useEffect(() => {
     fetchBrowsingProfiles();
   }, [user, userData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const revealId = params.get('reveal');
+    if (revealId && profiles.length > 0) {
+      const found = profiles.find(p => p.id === revealId);
+      if (found) {
+        setSelectedProfile(found);
+        // Clear param to avoid re-opening if state changes
+        window.history.replaceState({}, '', location.pathname);
+      }
+    }
+  }, [location.search, profiles]);
 
   const filteredProfiles = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

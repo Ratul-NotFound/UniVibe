@@ -92,7 +92,9 @@ export function calculateMatchScore(userA: any, userB: any): MatchResult {
   }
 
   const deptBonus = userA.department === userB.department ? 5 : 0;
-  const finalScore = Math.min(100, Math.round((totalScore / maxPossibleScore) * 100) + deptBonus);
+  const vibeBonus = (userA.currentVibe && userB.currentVibe && userA.currentVibe === userB.currentVibe) ? 10 : 0;
+  
+  const finalScore = Math.min(100, Math.round((totalScore / maxPossibleScore) * 100) + deptBonus + vibeBonus);
 
   return {
     score: finalScore,

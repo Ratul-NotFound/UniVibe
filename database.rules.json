@@ -14,7 +14,30 @@
         },
         "messages": {
           "$msgId": {
-            ".validate": "newData.hasChildren(['senderId', 'content', 'type', 'timestamp']) && newData.child('senderId').val() === auth.uid"
+            // Only members can write to messages in this chat
+            ".write": "auth != null && data.parent().parent().child('members').child(auth.uid).val() === true",
+            // Validate structure for new messages
+            ".validate": "newData.hasChildren(['senderId', 'content', 'type', 'timestamp']) || data.exists()",
+            
+            "reactions": {
+              "$uid": {
+                // Only the specific user can add/remove their own reaction
+                ".write": "auth.uid === $uid"
+              }
+            },
+            "readBy": {
+              "$uid": {
+                // Only the specific user can mark as read for themselves
+                ".write": "auth.uid === $uid"
+              }
+            },
+            "senderId": {
+              ".write": "!data.exists()"
+            },
+            "content": {
+              // Only sender can delete/edit the message content
+              ".write": "data.parent().child('senderId').val() === auth.uid || !newData.exists()"
+            }
           }
         },
         "typing": {
@@ -32,3 +55,4 @@
     }
   }
 }
+

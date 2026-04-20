@@ -10,6 +10,7 @@ export interface Message {
   timestamp: number;
   type: 'text' | 'image';
   readBy?: Record<string, boolean>;
+  reactions?: Record<string, string>; // uid -> emoji
 }
 
 export const useChat = (chatId: string | undefined) => {
@@ -84,5 +85,32 @@ export const useChat = (chatId: string | undefined) => {
     set(typingRef, typing);
   };
 
-  return { messages, loading, sendMessage, setTyping, otherUserTyping };
+  const reactToMessage = async (messageId: string, emoji: string | null) => {
+    if (!chatId || !user) return;
+    const reactionRef = ref(rtdb, `chats/${chatId}/messages/${messageId}/reactions/${user.uid}`);
+    await set(reactionRef, emoji);
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!chatId || !user) return;
+    const msgRef = ref(rtdb, `chats/${chatId}/messages/${messageId}`);
+    await set(msgRef, null);
+  };
+
+  const markAsRead = async (messageId: string) => {
+    if (!chatId || !user) return;
+    const readRef = ref(rtdb, `chats/${chatId}/messages/${messageId}/readBy/${user.uid}`);
+    await set(readRef, true);
+  };
+
+  return { 
+    messages, 
+    loading, 
+    sendMessage, 
+    setTyping, 
+    otherUserTyping,
+    reactToMessage,
+    deleteMessage,
+    markAsRead
+  };
 };

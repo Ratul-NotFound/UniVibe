@@ -27,7 +27,9 @@ import {
   Calendar,
   Save,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  Coins
 } from 'lucide-react';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -57,6 +59,7 @@ const Profile = () => {
   const { user, userData } = useAuth();
   const { unblockUser } = useSafety();
   const [savingProfile, setSavingProfile] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSafetyCenterOpen, setIsSafetyCenterOpen] = useState(false);
   const [unblockingUid, setUnblockingUid] = useState<string | null>(null);
@@ -275,6 +278,7 @@ const Profile = () => {
       });
 
       toast.success('Profile details updated');
+      setIsEditing(false);
     } catch (error: any) {
       console.error(error);
       if (error?.code === 'permission-denied') {
@@ -322,32 +326,74 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-zinc-50 pb-24 dark:bg-zinc-950">
       {/* Header Profile Section */}
-      <div className="bg-white px-6 pt-12 pb-8 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
-        <div className="flex items-center gap-6">
-          <div className="relative h-24 w-24 overflow-hidden rounded-full ring-4 ring-primary/10">
-            {userData?.photoURL ? (
-              <img src={userData.photoURL} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-zinc-100 text-zinc-400">
-                <User size={40} />
-              </div>
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl font-black">{userData?.name || user?.displayName || 'Student'}</h1>
-            {userData?.username && (
-              <p className="text-xs font-semibold text-primary">@{userData.username}</p>
-            )}
-            <p className="text-sm text-zinc-500">{userData?.department} • {userData?.year} Year</p>
-            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
-              <CheckCircle size={10} /> Verified Student
+      <div className="relative overflow-hidden bg-white px-6 pt-16 pb-10 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/50">
+        {/* Abstract Background Decoration */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 h-48 w-48 rounded-full bg-secondary/5 blur-3xl" />
+
+        <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
+          {/* Avatar Container with Premium Glow */}
+          <div className="group relative">
+            <div className="absolute -inset-1.5 animate-pulse rounded-full bg-gradient-to-tr from-primary via-secondary to-primary opacity-20 blur-md group-hover:opacity-40 transition-opacity" />
+            <div className="relative h-28 w-28 overflow-hidden rounded-full ring-4 ring-white dark:ring-zinc-900 shadow-2xl">
+              <div className="absolute inset-0 rounded-full border-[3px] border-primary/20" />
+              {userData?.photoURL ? (
+                <img src={userData.photoURL} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-zinc-50 text-zinc-300 dark:bg-zinc-800">
+                  <User size={48} />
+                </div>
+              )}
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <div className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
-                Vibe Points: {Number((userData as any)?.vibePoints ?? (userData as any)?.snapScore ?? 0)}
+            {/* Status Indicator (Always online for self) */}
+            <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-white bg-emerald-500 shadow-lg dark:border-zinc-900" />
+          </div>
+
+          <div className="flex-1 text-center sm:text-left">
+            <div className="flex flex-col items-center gap-1 sm:items-start sm:gap-2">
+              <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">
+                {userData?.name || user?.displayName || 'Student'}
+              </h1>
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                {userData?.username && (
+                  <p className="text-sm font-bold text-primary">@{userData.username}</p>
+                )}
+                <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700 hidden sm:block" />
+                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                  {userData?.department} • {userData?.year} Year
+                </p>
               </div>
-              <div className="rounded-full bg-amber-500/10 px-3 py-1 text-[11px] font-black text-amber-600 dark:text-amber-400">
-                UniCoins: {Number((userData as any)?.uniCoins ?? (userData as any)?.credits ?? 0)}
+            </div>
+
+            <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+              <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-500 ring-1 ring-inset ring-emerald-500/20">
+                <CheckCircle size={12} className="fill-emerald-500/20" /> Verified Student
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+                <div className="flex items-center gap-2 rounded-2xl bg-zinc-50 px-3 py-1.5 dark:bg-zinc-800/50 ring-1 ring-zinc-200/50 dark:ring-white/5 shadow-soft">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 leading-none">Vibe Points</p>
+                    <p className="text-sm font-black text-zinc-900 dark:text-white line-height-1">
+                      {Number((userData as any)?.vibePoints ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl bg-zinc-50 px-3 py-1.5 dark:bg-zinc-800/50 ring-1 ring-zinc-200/50 dark:ring-white/5 shadow-soft">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Coins size={14} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 leading-none">UniCoins</p>
+                    <p className="text-sm font-black text-zinc-900 dark:text-white line-height-1">
+                      {Number((userData as any)?.uniCoins ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -356,191 +402,230 @@ const Profile = () => {
 
       <div className="space-y-6 p-6">
         <section>
-          <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">Profile Details</label>
-          <Card className="space-y-4">
-            <Input
-              label="Username"
-              placeholder="e.g. ratul_09"
-              value={profileForm.username}
-              onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value }))}
-            />
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Profile Details</label>
+            <button 
+              onClick={() => setIsEditing(!isEditing)}
+              className="text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80"
+            >
+              {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+            </button>
+          </div>
+          
+          <Card className={`${isEditing ? 'space-y-4' : 'p-0 overflow-hidden'}`}>
+            {isEditing ? (
+              <>
+                <Input
+                  label="Username"
+                  placeholder="e.g. ratul_09"
+                  value={profileForm.username}
+                  onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value }))}
+                />
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input
-                label="Phone Number"
-                placeholder="e.g. 017XXXXXXXX"
-                value={profileForm.phone}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
-              />
-              <Input
-                label="Birth Date"
-                type="date"
-                value={profileForm.birthDate}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, birthDate: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Gender</label>
-              <div className="flex flex-wrap gap-2">
-                {GENDERS.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => {
-                      const nextAvatars = getAvatarOptionsByGender(g);
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        gender: g,
-                        photoURL: nextAvatars.includes(prev.photoURL) ? prev.photoURL : nextAvatars[0],
-                      }));
-                    }}
-                    className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {profileForm.gender && (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
-                <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
-                  {avatarOptions.map((avatar) => (
-                    <button
-                      key={avatar}
-                      onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
-                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
-                    >
-                      <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Phone Number"
+                    placeholder="e.g. 017XXXXXXXX"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  />
+                  <Input
+                    label="Birth Date"
+                    type="date"
+                    value={profileForm.birthDate}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, birthDate: e.target.value }))}
+                  />
                 </div>
-              </div>
-            )}
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department</label>
-              <select
-                className="w-full rounded-card border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-900"
-                value={profileForm.department}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, department: e.target.value }))}
-              >
-                <option value="">Select Department</option>
-                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Gender</label>
+                  <div className="flex flex-wrap gap-2">
+                    {GENDERS.map((g) => (
+                      <button
+                        key={g}
+                        onClick={() => {
+                          const nextAvatars = getAvatarOptionsByGender(g);
+                          setProfileForm((prev) => ({
+                            ...prev,
+                            gender: g,
+                            photoURL: nextAvatars.includes(prev.photoURL) ? prev.photoURL : nextAvatars[0],
+                          }));
+                        }}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Academic Year</label>
-              <div className="flex flex-wrap gap-2">
-                {ACADEMIC_YEARS.map((y) => (
-                  <button
-                    key={y}
-                    onClick={() => setProfileForm((prev) => ({ ...prev, year: y }))}
-                    className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.year === y ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Looking For</label>
-              <div className="grid grid-cols-2 gap-2">
-                {LOOKING_FOR.map((item) => (
-                  <button
-                    key={item.value}
-                    onClick={() => setProfileForm((prev) => ({ ...prev, lookingFor: item.value }))}
-                    className={`rounded-card border p-3 text-center text-sm font-medium transition-colors ${profileForm.lookingFor === item.value ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400'}`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Bio</label>
-              <textarea
-                placeholder="Share a bit about yourself..."
-                className="h-24 w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
-                value={profileForm.bio}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input
-                label="Hometown"
-                placeholder="Where are you from?"
-                value={profileForm.hometown}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, hometown: e.target.value }))}
-              />
-              <Input
-                label="Current City"
-                placeholder="Where do you live now?"
-                value={profileForm.currentCity}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, currentCity: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Engagement Type</label>
-              <div className="flex flex-wrap gap-2">
-                {ENGAGEMENT_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setProfileForm((prev) => ({ ...prev, engagementType: type }))}
-                    className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.engagementType === type ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {profileForm.engagementType && profileForm.engagementType !== 'None' && (
-              <Input
-                label="Engagement Details"
-                placeholder="Club/lab/company/role"
-                value={profileForm.engagementDetails}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, engagementDetails: e.target.value }))}
-              />
-            )}
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Interests (select at least 5)</label>
-              <div className="max-h-64 space-y-4 overflow-y-auto pr-2">
-                {Object.entries(INTEREST_CATEGORIES).map(([catId, catInfo]) => (
-                  <div key={catId}>
-                    <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">{catId}</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {catInfo.interests.map((interest) => {
-                        const isSelected = profileForm.interests[catId]?.includes(interest);
-                        return (
-                          <button
-                            key={interest}
-                            onClick={() => toggleInterest(catId, interest)}
-                            className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-all ${isSelected ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 dark:ring-offset-zinc-950' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
-                          >
-                            {interest}
-                          </button>
-                        );
-                      })}
+                {profileForm.gender && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
+                    <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+                      {avatarOptions.map((avatar) => (
+                        <button
+                          key={avatar}
+                          onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
+                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                        >
+                          <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                )}
 
-            <div className="flex justify-end">
-              <Button onClick={handleProfileSave} isLoading={savingProfile}>
-                <Save className="mr-2 h-4 w-4" />
-                Save Profile Details
-              </Button>
-            </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department</label>
+                  <select
+                    className="w-full rounded-card border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-900"
+                    value={profileForm.department}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, department: e.target.value }))}
+                  >
+                    <option value="">Select Department</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Academic Year</label>
+                  <div className="flex flex-wrap gap-2">
+                    {ACADEMIC_YEARS.map((y) => (
+                      <button
+                        key={y}
+                        onClick={() => setProfileForm((prev) => ({ ...prev, year: y }))}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.year === y ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Looking For</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {LOOKING_FOR.map((item) => (
+                      <button
+                        key={item.value}
+                        onClick={() => setProfileForm((prev) => ({ ...prev, lookingFor: item.value }))}
+                        className={`rounded-card border p-3 text-center text-sm font-medium transition-colors ${profileForm.lookingFor === item.value ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400'}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Bio</label>
+                  <textarea
+                    placeholder="Share a bit about yourself..."
+                    className="h-24 w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                    value={profileForm.bio}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Hometown"
+                    placeholder="Where are you from?"
+                    value={profileForm.hometown}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, hometown: e.target.value }))}
+                  />
+                  <Input
+                    label="Current City"
+                    placeholder="Where do you live now?"
+                    value={profileForm.currentCity}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, currentCity: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Engagement Type</label>
+                  <div className="flex flex-wrap gap-2">
+                    {ENGAGEMENT_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setProfileForm((prev) => ({ ...prev, engagementType: type }))}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.engagementType === type ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {profileForm.engagementType && profileForm.engagementType !== 'None' && (
+                  <Input
+                    label="Engagement Details"
+                    placeholder="Club/lab/company/role"
+                    value={profileForm.engagementDetails}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, engagementDetails: e.target.value }))}
+                  />
+                )}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Interests (select at least 5)</label>
+                  <div className="max-h-64 space-y-4 overflow-y-auto pr-2">
+                    {Object.entries(INTEREST_CATEGORIES).map(([catId, catInfo]) => (
+                      <div key={catId}>
+                        <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">{catId}</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {catInfo.interests.map((interest) => {
+                            const isSelected = profileForm.interests[catId]?.includes(interest);
+                            return (
+                              <button
+                                key={interest}
+                                onClick={() => toggleInterest(catId, interest)}
+                                className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-all ${isSelected ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 dark:ring-offset-zinc-950' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                              >
+                                {interest}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  <Button onClick={handleProfileSave} isLoading={savingProfile}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Details
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="divide-y divide-zinc-50 dark:divide-zinc-800">
+                <div className="p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Bio</p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 italic">
+                    {userData?.bio || "No bio set yet. Click Edit Profile to tell others about yourself!"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-zinc-50 dark:divide-zinc-800">
+                  <div className="p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Looking For</p>
+                    <p className="text-xs font-bold text-primary">{userData?.lookingFor || "N/A"}</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Interests</p>
+                    <p className="text-xs font-bold">{Object.values(userData?.interests || {}).flat().length} Selected</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="w-full py-4 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+                >
+                  Edit Profile Details
+                </button>
+              </div>
+            )}
           </Card>
         </section>
 

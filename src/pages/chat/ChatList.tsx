@@ -9,13 +9,72 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { Modal } from '@/components/ui/Modal';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
+import ProfileCard from '@/components/profile/ProfileCard';
 
 type UserNote = {
   text: string;
   expiresAt: number;
 };
 
-const ChatListItem = ({ match }: { match: any }) => {
+const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; className?: string }) => {
+  if (!isOnline) return null;
+  return (
+    <div className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-950 ${className}`} />
+  );
+};
+
+const NoteAvatar = ({ 
+  uid, 
+  photoURL, 
+  name, 
+  isSelf, 
+  ringClass 
+}: { 
+  uid: string; 
+  photoURL?: string | null; 
+  name: string; 
+  isSelf: boolean; 
+  ringClass: string;
+  onClick?: () => void;
+}) => {
+  const { isOnline } = usePresenceStatus(uid);
+
+  return (
+    <div 
+      onClick={(e) => {
+        if (onClick) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className={`mx-auto mb-1 h-[66px] w-[66px] rounded-full p-[2px] transition-transform hover:scale-105 active:scale-95 ${ringClass}`}
+    >
+      <div className="relative h-full w-full overflow-hidden rounded-full bg-white p-[2px] dark:bg-zinc-950">
+        <div className="h-full w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+          {photoURL ? (
+            <img src={photoURL} alt={name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-zinc-400">
+              <User size={18} />
+            </div>
+          )}
+        </div>
+        
+        {isOnline && !isSelf && (
+          <PresenceDot isOnline={true} className="bottom-0.5 right-0.5" />
+        )}
+
+        {isSelf && (
+          <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-primary text-white dark:border-zinc-950">
+            <Plus size={12} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ChatListItem = ({ match, onAvatarClick }: { match: any; onAvatarClick: (user: any) => void }) => {
   const [otherUser, setOtherUser] = useState<any>(match.otherUser || null);
   const navigate = useNavigate();
   const { isOnline, lastChanged } = usePresenceStatus(match.otherUserId);
@@ -64,8 +123,14 @@ const ChatListItem = ({ match }: { match: any }) => {
       onClick={() => navigate(`/chat/${match.chatId}`)}
       className="flex cursor-pointer items-center gap-4 px-6 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
     >
-      <div className="relative">
-        <div className="h-14 w-14 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+      <div 
+        className="relative"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAvatarClick(otherUser);
+        }}
+      >
+        <div className="h-14 w-14 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800 ring-2 ring-transparent transition-all hover:ring-primary/20">
           {otherUser.photoURL ? (
             <img src={otherUser.photoURL} alt={otherUser.name} className="h-full w-full object-cover" />
           ) : (
@@ -74,8 +139,7 @@ const ChatListItem = ({ match }: { match: any }) => {
             </div>
           )}
         </div>
-        {/* Unread indicator placeholder */}
-        <div className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-primary dark:border-zinc-950" />
+        <PresenceDot isOnline={isOnline} className="bottom-0 right-0" />
       </div>
 
       <div className="flex-1">
@@ -94,7 +158,7 @@ const ChatListItem = ({ match }: { match: any }) => {
 };
 
 const ChatList = () => {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const { matches, loading } = useMatches();
   const [searchTerm, setSearchTerm] = useState('');
   const [showComposer, setShowComposer] = useState(false);
@@ -102,6 +166,7 @@ const ChatList = () => {
   const [isPostingNote, setIsPostingNote] = useState(false);
   const [notesByUid, setNotesByUid] = useState<Record<string, UserNote>>({});
   const [activeNoteUid, setActiveNoteUid] = useState<string | null>(null);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
 
   useEffect(() => {
     if (!user) {
@@ -198,7 +263,7 @@ const ChatList = () => {
       cards.push({
         uid: user.uid,
         name: 'Your note',
-        photoURL: user.photoURL || null,
+        photoURL: userData?.photoURL || user.photoURL || null,
         text: notesByUid[user.uid]?.text || '',
         isSelf: true,
         hasNote: Boolean(notesByUid[user.uid]),
@@ -265,7 +330,7 @@ const ChatList = () => {
             </div>
           ) : null}
 
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-4 overflow-x-auto pb-4 pt-10">
             {noteCards.map((card) => {
               const ringClass = card.hasNote
                 ? 'bg-gradient-to-br from-orange-400 via-pink-500 to-purple-500'
@@ -279,24 +344,34 @@ const ChatList = () => {
                     setActiveNoteUid(card.uid);
                     if (card.isSelf && !card.hasNote) setShowComposer(true);
                   }}
-                  className="w-[72px] shrink-0 text-center"
+                  className="relative w-[72px] shrink-0 text-center"
                 >
-                  <div className={`mx-auto mb-1 h-[66px] w-[66px] rounded-full p-[2px] ${ringClass}`}>
-                    <div className="relative h-full w-full overflow-hidden rounded-full bg-white p-[2px] dark:bg-zinc-950">
-                      <div className="h-full w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-                        {card.photoURL ? (
-                          <img src={card.photoURL} alt={card.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-zinc-400"><User size={18} /></div>
-                        )}
+                  {/* Note Bubble */}
+                  {card.hasNote && (
+                    <div className="absolute -top-10 left-1/2 z-10 w-[84px] -translate-x-1/2 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-300">
+                      <div className="relative rounded-2xl bg-zinc-900 px-2 py-1.5 shadow-xl dark:bg-zinc-800 border border-white/10">
+                        <p className="line-clamp-2 text-[10px] font-bold leading-tight text-white">
+                          {card.text}
+                        </p>
+                        {/* Bubble Tail */}
+                        <div className="absolute -bottom-1 left-[30%] h-2 w-2 rotate-45 border-b border-r border-white/5 bg-zinc-900 dark:bg-zinc-800" />
                       </div>
-                      {card.isSelf ? (
-                        <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-primary text-white dark:border-zinc-950">
-                          <Plus size={12} />
-                        </div>
-                      ) : null}
                     </div>
-                  </div>
+                  )}
+
+                  <NoteAvatar 
+                    uid={card.uid}
+                    photoURL={card.photoURL}
+                    name={card.name}
+                    isSelf={card.isSelf}
+                    ringClass={ringClass}
+                    onClick={() => {
+                      if (!card.isSelf) {
+                        const match = matches.find(m => m.otherUserId === card.uid);
+                        setSelectedUserForProfile(match?.otherUser || { id: card.uid, name: card.name, photoURL: card.photoURL });
+                      }
+                    }}
+                  />
                   <p className="line-clamp-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
                     {card.isSelf ? 'You' : card.name}
                   </p>
@@ -324,7 +399,11 @@ const ChatList = () => {
           </div>
         ) : filteredMatches.length > 0 ? (
           filteredMatches.map(match => (
-            <ChatListItem key={match.id} match={match} />
+            <ChatListItem 
+              key={match.id} 
+              match={match} 
+              onAvatarClick={(u) => setSelectedUserForProfile(u)}
+            />
           ))
         ) : (
           <div className="mt-20 flex flex-col items-center p-6 text-center">
@@ -376,6 +455,21 @@ const ChatList = () => {
             </div>
           ) : null}
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(selectedUserForProfile)}
+        onClose={() => setSelectedUserForProfile(null)}
+        padding={false}
+      >
+        {selectedUserForProfile && (
+          <div className="h-[500px]">
+            <ProfileCard 
+              user={selectedUserForProfile} 
+              className="h-full"
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );

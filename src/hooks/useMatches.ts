@@ -15,6 +15,7 @@ import { db, rtdb } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { createAppNotification } from '@/lib/notifications';
+import { useSocial } from './useSocial';
 
 const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
 const getChatId = (uidA: string, uidB: string) => `chat_${[uidA, uidB].sort().join('_')}`;
@@ -32,6 +33,7 @@ const buildOtherUser = async (uid: string) => {
 
 export const useMatches = () => {
   const { user, userData } = useAuth();
+  const { acceptRequest: socialAccept } = useSocial();
   const [matches, setMatches] = useState<any[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
@@ -147,71 +149,8 @@ export const useMatches = () => {
     };
   }, [user]);
 
-  const acceptRequest = async (requestItem: any, hasRetried = false) => {
-    if (!user || !isEligibleDiuSession(user)) return;
-
-    const fromUid = requestItem.fromUid;
-    const toUid = requestItem.toUid;
-    if (!fromUid || !toUid || toUid !== user.uid) return;
-
-    try {
-      const requesterUserDoc = await getDoc(doc(db, 'users', fromUid));
-      const requesterUser = requesterUserDoc.exists() ? requesterUserDoc.data() : {};
-      const matchResult = calculateMatchScore(userData || {}, requesterUser || {});
-
-      const matchDocId = getMatchDocId(fromUid, toUid);
-      const chatId = getChatId(fromUid, toUid);
-
-      await updateDoc(doc(db, 'requests', requestItem.id), {
-        status: 'accepted',
-        updatedAt: serverTimestamp(),
-      });
-
-      await Promise.all([
-        setDoc(
-          doc(db, 'matches', matchDocId),
-          {
-            users: [fromUid, toUid],
-            matchScore: matchResult.score,
-            commonInterests: matchResult.commonInterests?.slice(0, 8) || [],
-            chatId,
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        ),
-        set(ref(rtdb, `chats/${chatId}`), {
-          members: {
-            [fromUid]: true,
-            [toUid]: true,
-          },
-          createdAt: Date.now(),
-        }),
-      ]);
-
-      await createAppNotification({
-        toUid: fromUid,
-        fromUid: toUid,
-        type: 'requestAccepted',
-        title: 'Request accepted',
-        body: `${userData?.name || 'A student'} accepted your request. You can message now.`,
-        link: '/chat',
-        metadata: { chatId },
-      });
-    } catch (err: any) {
-      if (!hasRetried && err?.code === 'permission-denied') {
-        try {
-          await user.reload();
-          await user.getIdToken(true);
-          await acceptRequest(requestItem, true);
-          return;
-        } catch (refreshErr) {
-          console.error('Accept request token refresh failed:', refreshErr);
-        }
-      }
-
-      console.error('Accept request failed:', err);
-      throw err;
-    }
+  const acceptRequest = async (requestItem: any) => {
+    return await socialAccept(requestItem);
   };
 
   const declineRequest = async (requestItem: any, hasRetried = false) => {
