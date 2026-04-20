@@ -58,6 +58,11 @@ const hasCompletedOnboarding = (data: UserData | null): boolean => {
   return Boolean(data.department && data.year && data.lookingFor && interestCount >= 5);
 };
 
+const isEligibleDiuSession = (user: User | null): boolean => {
+  if (!user?.email) return false;
+  return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
+};
+
 interface AuthContextType {
   user: User | null;
   userData: UserData | null;
@@ -125,6 +130,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (user) {
+        if (!isEligibleDiuSession(user)) {
+          setUserData(null);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         subscribeToUserDoc(user.uid);
       } else {

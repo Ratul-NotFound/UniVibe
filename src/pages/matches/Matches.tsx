@@ -79,18 +79,33 @@ const Matches = () => {
   } = useMatches();
 
   const handleAccept = async (item: any) => {
-    await acceptRequest(item);
-    toast.success('Request accepted. You can now chat.');
+    try {
+      await acceptRequest(item);
+      toast.success('Request accepted. You can now chat.');
+    } catch (error) {
+      console.error('Accept action failed:', error);
+      toast.error('Could not accept request. Please try again.');
+    }
   };
 
   const handleDecline = async (item: any) => {
-    await declineRequest(item);
-    toast('Request declined.');
+    try {
+      await declineRequest(item);
+      toast('Request declined.');
+    } catch (error) {
+      console.error('Decline action failed:', error);
+      toast.error('Could not decline request. Please try again.');
+    }
   };
 
   const handleCancel = async (item: any) => {
-    await cancelRequest(item);
-    toast('Request cancelled.');
+    try {
+      await cancelRequest(item);
+      toast('Request cancelled.');
+    } catch (error) {
+      console.error('Cancel action failed:', error);
+      toast.error('Could not cancel request. Please try again.');
+    }
   };
 
   return (

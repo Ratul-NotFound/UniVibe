@@ -1,175 +1,105 @@
-import { useEffect, useMemo, useState } from 'react';
-import { doc, getDoc, increment, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { 
+  doc, onSnapshot, updateDoc, increment, 
+  setDoc, getDoc, serverTimestamp 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { DailyContent, DailyMood, generateDailyContent, getDayKey, isPuzzleAnswerCorrect } from '@/lib/gamification';
+import { toast } from 'react-hot-toast';
 
-const DAILY_HINT_COST = 3;
+const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null) => {
+  if (!user?.email) return false;
+  return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
+};
 
 export const useGamification = () => {
-  const { user, userData } = useAuth();
-  const [daily, setDaily] = useState<DailyContent | null>(null);
+  const { user } = useAuth();
+  const [uniCoins, setUniCoins] = useState<number>(0);
+  const [vibePoints, setVibePoints] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  const dayKey = useMemo(() => getDayKey(), []);
-  const userDocRef = useMemo(() => (user ? doc(db, 'users', user.uid) : null), [user]);
-  const dailyDocRef = useMemo(() => (user ? doc(db, 'users', user.uid, 'daily', dayKey) : null), [dayKey, user]);
-
   useEffect(() => {
-    if (!user || !dailyDocRef || !userDocRef) {
-      setDaily(null);
+    if (!user || !isEligibleDiuSession(user)) {
+      setUniCoins(0);
+      setVibePoints(0);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    const ensureDailyDoc = async () => {
-      const snap = await getDoc(dailyDocRef);
-      if (!snap.exists()) {
-        const generated = generateDailyContent({ uid: user.uid, dayKey });
-        await setDoc(dailyDocRef, {
-          ...generated,
-          createdAt: serverTimestamp(),
-        });
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUniCoins(data.uniCoins || 0);
+        setVibePoints(data.vibePoints || 0);
+      } else {
+        // Initialize user economy if it doesn't exist
+        setDoc(userRef, {
+          uniCoins: 100, // Starter coins
+          vibePoints: 0,
+          createdAt: serverTimestamp()
+        }, { merge: true });
       }
-
-      await updateDoc(userDocRef, {
-        vibePoints: increment(0),
-        uniCoins: increment(0),
-      });
-    };
-
-    ensureDailyDoc().catch(() => {
       setLoading(false);
-    });
-
-    const unsubscribe = onSnapshot(dailyDocRef, (snap) => {
-      setDaily(snap.exists() ? (snap.data() as DailyContent) : null);
+    }, (error) => {
+      console.error("Gamification sync error:", error);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user, dayKey, dailyDocRef, userDocRef]);
+  }, [user]);
 
-  const completeMission = async (missionId: string) => {
-    if (!user || !dailyDocRef || !userDocRef) return;
-
-    await runTransaction(db, async (tx) => {
-      const [dailySnap, userSnap] = await Promise.all([tx.get(dailyDocRef), tx.get(userDocRef)]);
-      if (!dailySnap.exists() || !userSnap.exists()) return;
-
-      const dailyData = dailySnap.data() as DailyContent;
-      const missions = dailyData.missions || [];
-      const mission = missions.find((m) => m.id === missionId);
-      if (!mission || mission.done) return;
-
-      const nextMissions = missions.map((m) => (m.id === missionId ? { ...m, done: true } : m));
-      tx.update(dailyDocRef, { missions: nextMissions });
-      tx.update(userDocRef, {
-        vibePoints: increment(mission.rewardScore),
-        uniCoins: increment(mission.rewardCoins),
-      });
-    });
-  };
-
-  const submitPuzzleAnswer = async (answer: string) => {
-    if (!user || !daily || !dailyDocRef || !userDocRef) {
-      return { ok: false, message: 'Puzzle is not ready yet.' };
+  const spendCoins = useCallback(async (amount: number) => {
+    if (!user) return false;
+    if (uniCoins < amount) {
+      toast.error('Not enough UniCoins!');
+      return false;
     }
 
-    const isCorrect = isPuzzleAnswerCorrect(answer, daily.puzzle.answer);
-    if (!isCorrect) {
-      return { ok: false, message: 'Not correct. Try again.' };
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        uniCoins: increment(-amount)
+      });
+      return true;
+    } catch (error) {
+      toast.error('Transaction failed');
+      return false;
     }
+  }, [user, uniCoins]);
 
-    await runTransaction(db, async (tx) => {
-      const [dailySnap, userSnap] = await Promise.all([tx.get(dailyDocRef), tx.get(userDocRef)]);
-      if (!dailySnap.exists() || !userSnap.exists()) return;
-
-      const dailyData = dailySnap.data() as DailyContent;
-      if (dailyData.puzzleSolved) return;
-
-      tx.update(dailyDocRef, { puzzleSolved: true });
-      tx.update(userDocRef, {
-        vibePoints: increment(dailyData.puzzle.rewardScore),
-        uniCoins: increment(dailyData.puzzle.rewardCoins),
+  const addVibePoints = useCallback(async (amount: number) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        vibePoints: increment(amount),
+        // Logic: Every 500 vibe points grants bonus coins
+        uniCoins: increment(Math.floor(amount / 10)) 
       });
-    });
-
-    return { ok: true, message: 'Puzzle solved. Rewards added.' };
-  };
-
-  const unlockPuzzleHint = async () => {
-    if (!user || !dailyDocRef || !userDocRef) {
-      return { ok: false, message: 'Hint unavailable.' };
+    } catch (error) {
+      console.error("Error adding vibe points:", error);
     }
+  }, [user]);
 
-    let result: { ok: boolean; message: string } = { ok: false, message: 'Hint unavailable.' };
-
-    await runTransaction(db, async (tx) => {
-      const [dailySnap, userSnap] = await Promise.all([tx.get(dailyDocRef), tx.get(userDocRef)]);
-      if (!dailySnap.exists() || !userSnap.exists()) {
-        result = { ok: false, message: 'Hint unavailable.' };
-        return;
-      }
-
-      const dailyData = dailySnap.data() as DailyContent;
-      const currentCoins = Number((userSnap.data() as any)?.uniCoins ?? (userSnap.data() as any)?.credits ?? 0);
-
-      if (dailyData.hintUnlocked) {
-        result = { ok: true, message: 'Hint already unlocked.' };
-        return;
-      }
-
-      if (currentCoins < DAILY_HINT_COST) {
-        result = { ok: false, message: 'Not enough UniCoins for a hint.' };
-        return;
-      }
-
-      tx.update(dailyDocRef, { hintUnlocked: true });
-      tx.update(userDocRef, { uniCoins: increment(-DAILY_HINT_COST) });
-      result = { ok: true, message: `Hint unlocked (-${DAILY_HINT_COST} UniCoins).` };
-    });
-
-    return result;
-  };
-
-  const voteBattle = async (side: 'left' | 'right') => {
-    if (!user || !dailyDocRef || !userDocRef) return;
-
-    await runTransaction(db, async (tx) => {
-      const [dailySnap, userSnap] = await Promise.all([tx.get(dailyDocRef), tx.get(userDocRef)]);
-      if (!dailySnap.exists() || !userSnap.exists()) return;
-
-      const dailyData = dailySnap.data() as DailyContent;
-      const alreadyVoted = !!dailyData.battle?.vote;
-      if (alreadyVoted) return;
-
-      tx.update(dailyDocRef, {
-        battle: {
-          ...dailyData.battle,
-          vote: side,
-          rewarded: true,
-        },
+  const addCoins = useCallback(async (amount: number) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        uniCoins: increment(amount)
       });
-
-      tx.update(userDocRef, {
-        vibePoints: increment(dailyData.battle.rewardScore || 10),
-        uniCoins: increment(dailyData.battle.rewardCoins || 1),
-      });
-    });
-  };
+    } catch (error) {
+      console.error("Error adding coins:", error);
+    }
+  }, [user]);
 
   return {
+    uniCoins,
+    vibePoints,
     loading,
-    dayKey,
-    daily,
-    vibePoints: Number((userData as any)?.vibePoints ?? (userData as any)?.snapScore ?? 0),
-    uniCoins: Number((userData as any)?.uniCoins ?? (userData as any)?.credits ?? 0),
-    completeMission,
-    submitPuzzleAnswer,
-    unlockPuzzleHint,
-    voteBattle,
+    spendCoins,
+    addVibePoints,
+    addCoins
   };
 };

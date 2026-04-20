@@ -26,6 +26,11 @@ import { Modal } from '@/components/ui/Modal';
 import { createAppNotification } from '@/lib/notifications';
 import { toast } from 'react-hot-toast';
 
+const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null) => {
+  if (!user?.email) return false;
+  return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
+};
+
 const Search = () => {
   const { user, userData } = useAuth();
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -76,14 +81,27 @@ const Search = () => {
   const handleProfileConnect = async (hasRetried = false) => {
     if (!user || !userData || !selectedProfile) return;
 
-    if (!user.emailVerified) {
-      toast.error('Verify your DIU email first, then try again.');
-      return;
-    }
+    let failedStep: 'token-claims' | 'swipe-write' | 'request-read' | 'request-write' | 'notification-write' = 'token-claims';
 
     try {
       setActionLoading(true);
 
+      const tokenResult = await user.getIdTokenResult();
+      const tokenEmail = String(tokenResult.claims.email || user.email || '');
+      const tokenVerified = tokenResult.claims.email_verified === true;
+      const isDiuEmail = /@diu\.edu\.bd$/i.test(tokenEmail);
+
+      if (!tokenVerified || !isDiuEmail) {
+        toast.error('Session claims are not ready for student actions. Sign out and sign in again with your verified DIU email.');
+        console.error('Connect blocked by token claims:', {
+          tokenEmail,
+          tokenVerified,
+          isDiuEmail,
+        });
+        return;
+      }
+
+      failedStep = 'swipe-write';
       await setDoc(
         doc(db, 'swipes', getSwipeDocId(user.uid, selectedProfile.id)),
         {
@@ -98,12 +116,25 @@ const Search = () => {
       const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, selectedProfile.id));
       const incomingRequestRef = doc(db, 'requests', getRequestDocId(selectedProfile.id, user.uid));
 
+      failedStep = 'request-read';
+      const safeGetRequestDoc = async (refToRead: typeof outgoingRequestRef) => {
+        try {
+          return await getDoc(refToRead);
+        } catch (readErr: any) {
+          if (readErr?.code === 'permission-denied') {
+            // Some deployed rules deny get on non-existing docs; treat as absent and continue.
+            return null;
+          }
+          throw readErr;
+        }
+      };
+
       const [outgoingSnap, incomingSnap] = await Promise.all([
-        getDoc(outgoingRequestRef),
-        getDoc(incomingRequestRef),
+        safeGetRequestDoc(outgoingRequestRef),
+        safeGetRequestDoc(incomingRequestRef),
       ]);
 
-      if (outgoingSnap.exists()) {
+      if (outgoingSnap?.exists()) {
         const outgoingStatus = String(outgoingSnap.data()?.status || '');
 
         if (outgoingStatus === 'pending') {
@@ -118,7 +149,8 @@ const Search = () => {
           return;
         }
 
-        if (outgoingStatus === 'declined' || outgoingStatus === 'cancelled') {
+        if (outgoingStatus !== 'pending' && outgoingStatus !== 'accepted') {
+          failedStep = 'request-write';
           await updateDoc(outgoingRequestRef, {
             status: 'pending',
             fromName: userData?.name || user.displayName || 'Someone',
@@ -127,6 +159,7 @@ const Search = () => {
           });
 
           try {
+            failedStep = 'notification-write';
             await createAppNotification({
               toUid: selectedProfile.id,
               fromUid: user.uid,
@@ -137,6 +170,7 @@ const Search = () => {
               metadata: {
                 fromUid: user.uid,
                 resend: true,
+                previousStatus: outgoingStatus || 'unknown',
               },
             });
           } catch (notifyErr) {
@@ -150,7 +184,7 @@ const Search = () => {
         }
       }
 
-      if (incomingSnap.exists()) {
+      if (incomingSnap?.exists()) {
         const incomingStatus = String(incomingSnap.data()?.status || '');
         if (incomingStatus === 'pending') {
           toast('They already requested you. Accept from Matches.', { icon: '💌' });
@@ -164,6 +198,7 @@ const Search = () => {
         }
       }
 
+      failedStep = 'request-write';
       await setDoc(
         outgoingRequestRef,
         {
@@ -179,6 +214,7 @@ const Search = () => {
       );
 
       try {
+        failedStep = 'notification-write';
         await createAppNotification({
           toUid: selectedProfile.id,
           fromUid: user.uid,
@@ -211,12 +247,16 @@ const Search = () => {
       }
 
       if (code === 'permission-denied') {
-        const step = (err?.message || '').toLowerCase().includes('notification') ? 'notification' : 'request';
-        toast.error(`Request blocked by permissions at ${step} step. No re-verification needed: refresh session (sign out/in) or publish latest rules.`);
+        toast.error(`Request blocked by permissions at ${failedStep}.`);
       } else {
         toast.error('Could not send request. Please try again.');
       }
-      console.error('Connect action failed:', err);
+      console.error('Connect action failed:', {
+        failedStep,
+        code,
+        message: err?.message,
+        err,
+      });
     } finally {
       setActionLoading(false);
     }
@@ -224,6 +264,12 @@ const Search = () => {
 
   const fetchBrowsingProfiles = async () => {
     if (!user || !userData) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!isEligibleDiuSession(user)) {
       setProfiles([]);
       setLoading(false);
       return;

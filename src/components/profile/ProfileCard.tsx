@@ -5,9 +5,10 @@ import MatchScoreBadge from './MatchScoreBadge';
 interface ProfileCardProps {
   user: any; // User type to be defined in types/
   matchScore?: number;
+  className?: string;
 }
 
-const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
+const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }) => {
   const interestCount = Object.values(user.interests || {}).flat().length;
 
   const getAge = (birthDate?: string) => {
@@ -27,7 +28,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore }) => {
   const age = getAge(user.birthDate);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-zinc-900">
+    <div className={`relative h-full w-full overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-zinc-900 ${className || ''}`}>
       {/* Background/Photo Area */}
       <div className="relative h-[70%] w-full bg-zinc-100 dark:bg-zinc-800">
         {user.photoURL ? (

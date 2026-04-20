@@ -1,444 +1,405 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Heart, X, Star, RotateCcw, Bell, User as UserIcon, Brain, Flame, Compass, BookHeart } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Flame, Coins, Plus, Radio, MapPin, Gamepad2, Laptop, 
+  Coffee, Music, GraduationCap, Ghost as GhostIcon, Dice5, 
+  Star, ChevronRight, Trophy, Sparkles, Compass, Search, Heart, 
+  MessageCircle, User as UserIcon, Zap, Crown, Map
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDiscovery } from '@/hooks/useDiscovery';
 import { useGamification } from '@/hooks/useGamification';
-import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/context/AuthContext';
-import ProfileCard from '@/components/profile/ProfileCard';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { ProfileSkeleton } from '@/components/ui/Skeleton';
+import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
+import { 
+  collection, query, orderBy, limit, onSnapshot, 
+  addDoc, serverTimestamp, updateDoc, doc, arrayUnion, increment, setDoc, getDocs, where
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+type TabType = 'pulse' | 'battles' | 'quests' | 'vibe-check' | 'shop';
+
+const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null) => {
+  if (!user?.email) return false;
+  return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
+};
 
 const Discovery = () => {
   const { user, userData } = useAuth();
-  const { profiles, loading, error, refresh, likeProfile, passProfile } = useDiscovery();
-  const {
-    daily,
-    vibePoints,
-    uniCoins,
-    completeMission,
-    submitPuzzleAnswer,
-    unlockPuzzleHint,
-    voteBattle,
-  } = useGamification();
-  const { permission, enableNotifications, notifications, unreadCount, markAllAsRead, clearNotifications } = useNotifications();
+  const { uniCoins, vibePoints, spendCoins, addVibePoints } = useGamification();
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [mood, setMood] = useState<'all' | 'study' | 'chill' | 'explore' | 'deep'>('all');
-  const [puzzleRevealed, setPuzzleRevealed] = useState(false);
-  const [puzzleInput, setPuzzleInput] = useState('');
 
-  React.useEffect(() => {
-    if (!loading) {
-      setShowSlowLoadingHint(false);
+  // Navigation
+  const [activeTab, setActiveTab] = useState<TabType>('pulse');
+  const [isPosting, setIsPosting] = useState(false);
+  const [newPulse, setNewPulse] = useState('');
+  
+  // Data State
+  const [pulses, setPulses] = useState<any[]>([]);
+  const [battles, setBattles] = useState<any[]>([]);
+  const [missions, setMissions] = useState<any[]>([]);
+  const [vibeStats, setVibeStats] = useState<Record<string, number>>({});
+  const [userVibe, setUserVibe] = useState<string | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+
+  // Real-time Listeners
+  useEffect(() => {
+    if (!user || !isEligibleDiuSession(user)) {
+      return () => {};
+    }
+
+    const qPulse = query(
+      collection(db, 'notifications'),
+      where('toUid', '==', user.uid),
+      limit(50)
+    );
+    const qBattle = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(10));
+    const unsubPulse = onSnapshot(
+      qPulse,
+      (s) => {
+        const rows = s.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => {
+            const aTs = typeof (a as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis === 'function'
+              ? (a as { createdAt?: { toMillis?: () => number } }).createdAt!.toMillis!()
+              : 0;
+            const bTs = typeof (b as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis === 'function'
+              ? (b as { createdAt?: { toMillis?: () => number } }).createdAt!.toMillis!()
+              : 0;
+            return bTs - aTs;
+          })
+          .slice(0, 15);
+        setPulses(rows);
+      },
+      (error) => {
+        console.error('Pulse listener error:', error);
+        setPulses([]);
+      }
+    );
+    const unsubBattle = onSnapshot(
+      qBattle,
+      (s) => setBattles(s.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (error) => {
+        console.error('Battle listener error:', error);
+        setBattles([]);
+      }
+    );
+    
+    // Real-time Vibe Stats
+    const vibeQuery = query(collection(db, 'users'), where('currentVibe', '!=', null));
+    const unsubVibes = onSnapshot(
+      vibeQuery,
+      (s) => {
+        const stats: Record<string, number> = {};
+        s.docs.forEach(d => {
+          const v = d.data().currentVibe;
+          stats[v] = (stats[v] || 0) + 1;
+        });
+        setVibeStats(stats);
+        // Find current user's vibe from the snapshot for local sync
+        const myDoc = s.docs.find(d => d.id === user?.uid);
+        if (myDoc) setUserVibe(myDoc.data().currentVibe);
+      },
+      (error) => {
+        console.error('Vibe stats listener error:', error);
+        setVibeStats({});
+      }
+    );
+
+    return () => { unsubPulse(); unsubBattle(); unsubVibes(); };
+  }, [user]);
+
+  // Mission Initializer
+  useEffect(() => {
+    if (!user || !isEligibleDiuSession(user)) {
       return;
     }
-
-    const timer = setTimeout(() => setShowSlowLoadingHint(true), 8000);
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  // Motion values for swipe gestures
-  const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-25, 25]);
-  const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
-  const likeOpacity = useTransform(x, [50, 150], [0, 1]);
-  const nopeOpacity = useTransform(x, [-50, -150], [0, 1]);
-
-  const moodProfiles = React.useMemo(() => {
-    if (mood === 'all') return profiles;
-
-    return profiles.filter((profile) => {
-      const interests = Object.values(profile.interests || {}).flat().join(' ').toLowerCase();
-      const lookingFor = String(profile.lookingFor || '').toLowerCase();
-
-      if (mood === 'study') {
-        return lookingFor === 'study' || interests.includes('coding') || interests.includes('reading');
-      }
-      if (mood === 'chill') {
-        return lookingFor === 'friendship' || interests.includes('music') || interests.includes('coffee');
-      }
-      if (mood === 'explore') {
-        return lookingFor === 'networking' || interests.includes('travel') || interests.includes('adventurous');
-      }
-      return lookingFor === 'relationship' || interests.includes('empathetic') || interests.includes('serious');
-    });
-  }, [profiles, mood]);
-
-  React.useEffect(() => {
-    setCurrentIndex(0);
-    setPuzzleRevealed(false);
-  }, [mood, profiles.length]);
-
-  const currentProfile = moodProfiles[currentIndex];
-
-  const handleNotificationClick = async () => {
-    setIsNotificationsOpen(true);
-    await markAllAsRead();
-
-    if (permission === 'granted') return;
-
-    const status = await enableNotifications();
-    if (status === 'granted') toast.success('Notifications enabled!');
-  };
-
-  const handleMissionComplete = async (missionId: string, alreadyDone: boolean) => {
-    if (alreadyDone) {
-      toast('Mission already completed today.');
-      return;
-    }
-    await completeMission(missionId);
-    toast.success('Mission completed. Vibe Points and UniCoins added!');
-  };
-
-  const handlePuzzleSubmit = async () => {
-    const result = await submitPuzzleAnswer(puzzleInput);
-    if (result.ok) {
-      toast.success(result.message);
-      setPuzzleRevealed(true);
-      setPuzzleInput('');
-    } else {
-      toast.error(result.message);
-    }
-  };
-
-  const handleHintUnlock = async () => {
-    const result = await unlockPuzzleHint();
-    if (result.ok) {
-      toast.success(result.message);
-    } else {
-      toast.error(result.message);
-    }
-  };
-
-  const handleBattleVote = async (side: 'left' | 'right') => {
-    if (daily?.battle?.vote) {
-      toast('You already voted in today\'s battle.');
-      return;
-    }
-    await voteBattle(side);
-    toast.success('Vote submitted. Rewards added!');
-  };
-
-  const renderHeader = () => (
-    <div className="sticky top-0 z-20 border-b border-zinc-100 bg-white/85 px-4 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/85">
-      <div className="flex w-full items-center justify-between">
-        <h1 className="text-2xl font-black tracking-tight text-pink-400">UniVibe</h1>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleNotificationClick}
-            aria-label="Open notifications"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            <Bell size={18} />
-            {(unreadCount > 0 || permission !== 'granted') && (
-              <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border border-white bg-rose-500 dark:border-zinc-900" />
-            )}
-          </button>
-
-          <button
-            onClick={() => navigate('/profile')}
-            aria-label="Open profile"
-            className="h-10 w-10 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
-          >
-            {userData?.photoURL || user?.photoURL ? (
-              <img src={userData?.photoURL || user?.photoURL || ''} alt="My avatar" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-zinc-500 dark:text-zinc-300">
-                <UserIcon size={18} />
-              </div>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const handleSwipe = async (direction: 'left' | 'right') => {
-    if (!currentProfile) return;
-
-    try {
-      if (direction === 'right') {
-        const result = await likeProfile(currentProfile);
-        if (result.verificationRequired) {
-          toast.error('Verify your DIU email first, then try again.');
-        } else if (result.requestSent) {
-          toast.success(`Request sent to ${currentProfile.name}!`, { icon: '📩' });
-        } else if (result.alreadyRequested) {
-          toast('Request already pending.', { icon: '⏳' });
-        } else if (result.incomingPending) {
-          toast('They already requested you. Accept from Matches.', { icon: '💌' });
-        } else if (result.alreadyMatched) {
-          toast('You are already connected. Open chat from Matches.', { icon: '✅' });
+    const missionRef = collection(db, 'users', user.uid, 'missions');
+    const unsubMissions = onSnapshot(
+      missionRef,
+      (snapshot) => {
+        if (snapshot.empty) {
+          const defaultMissions = [
+            { id: 'q1', title: 'Campus Ghost', status: 'Infiltrate', reward: 150, progress: 0, total: 1, type: 'ghost' },
+            { id: 'q2', title: 'Opinion Leader', status: 'Debate', reward: 200, progress: 0, total: 3, type: 'vote' },
+            { id: 'q3', title: 'Vibe Architect', status: 'Broadcast', reward: 100, progress: 0, total: 1, type: 'pulse' }
+          ];
+          defaultMissions.forEach(m => setDoc(doc(db, 'users', user.uid, 'missions', m.id), m));
         } else {
-          toast.success(`Connection interest saved for ${currentProfile.name}.`, { icon: '❤️' });
+          setMissions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         }
-      } else {
-        await passProfile(currentProfile);
+      },
+      (error) => {
+        console.error('Missions listener error:', error);
+        setMissions([]);
+      }
+    );
+    return () => unsubMissions();
+  }, [user]);
+
+  const handleUpdateVibe = async (vibe: string, hasRetried = false) => {
+    if (!user || !isEligibleDiuSession(user)) {
+      toast.error('Use a verified DIU email to update vibe.');
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { currentVibe: vibe });
+      toast.success(`Broadcasting: ${vibe}`, { icon: '📡' });
+    } catch (e: unknown) {
+      const errorCode = (e as { code?: string })?.code;
+      if (!hasRetried && errorCode === 'permission-denied') {
+        try {
+          await user.getIdToken(true);
+          await handleUpdateVibe(vibe, true);
+          return;
+        } catch (refreshErr) {
+          console.error('Vibe token refresh failed:', refreshErr);
+        }
       }
 
-      setCurrentIndex(prev => prev + 1);
-    } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'permission-denied') {
-        toast.error('Request blocked by permissions. Your email is already verified; refresh session (sign out/in) or publish latest rules.');
-      } else {
-        toast.error('Could not send request. Please try again.');
-      }
-      console.error('Swipe action failed:', err);
+      console.error('Vibe update failed:', e);
+      toast.error('Permission denied for vibe update');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-        {renderHeader()}
-        <div className="mx-auto w-full max-w-6xl p-6">
-           <ProfileSkeleton />
-           <div className="mt-12 flex justify-center gap-4">
-              {[1,2,3,4].map(i => <div key={i} className="h-14 w-14 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-900" />)}
-           </div>
-           {showSlowLoadingHint && (
-            <div className="mt-8 text-center">
-              <p className="text-xs text-zinc-500">Still loading profiles. You can refresh now.</p>
-              <Button onClick={() => refresh()} variant="outline" className="mt-3">Retry Loading</Button>
-            </div>
-           )}
-        </div>
-      </div>
-    );
-  }
+  const handleRollDice = async () => {
+    if (isRolling) return;
+    setIsRolling(true);
+    // Logic for Mystery Meet
+    setTimeout(() => {
+      setIsRolling(false);
+      toast('Searching for a match...', { icon: '🎲' });
+      navigate('/search'); // Redirect to search to find someone
+    }, 1500);
+  };
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-        {renderHeader()}
-        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-          <h2 className="text-xl font-bold text-danger">Oops! Something went wrong</h2>
-          <p className="mt-2 text-zinc-600">{error}</p>
-          <Button onClick={() => refresh()} className="mt-6">Try Again</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentIndex >= moodProfiles.length) {
-    return (
-      <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-        {renderHeader()}
-        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-          <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900">
-            <RotateCcw className="h-10 w-10 text-zinc-400" />
-          </div>
-          <h2 className="text-2xl font-black italic text-zinc-400">That's everyone for now!</h2>
-          <p className="mt-2 text-zinc-500">Check back later or switch your mood to see more people.</p>
-          <Button
-            onClick={async () => {
-              await refresh();
-              setCurrentIndex(0);
-            }}
-            variant="outline"
-            className="mt-8"
-          >
-            Refresh List
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const handleVote = async (battleId: string, side: 'left' | 'right') => {
+    const battle = battles.find(b => b.id === battleId);
+    if (!user || battle?.voters?.includes(user.uid)) return toast.error('Already Voted');
+    await updateDoc(doc(db, 'battles', battleId), {
+      [`${side}.votes`]: increment(1),
+      voters: arrayUnion(user.uid)
+    });
+    toast.success('Vote Cast!', { icon: '⚡' });
+  };
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-      {renderHeader()}
-
-      <div className="relative flex flex-1 flex-col items-center justify-center p-4">
-        <div className="mb-4 grid w-full max-w-6xl gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 dark:border-primary/40 dark:bg-primary/10">
-            <div className="text-xs font-black uppercase tracking-wider text-primary">Your Power</div>
-            <div className="mt-2 flex items-end justify-between">
-              <div>
-                <p className="text-[11px] text-zinc-500">Vibe Points</p>
-                <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{vibePoints}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] text-zinc-500">UniCoins</p>
-                <p className="text-xl font-black text-primary">{uniCoins}</p>
-              </div>
+    <div className="min-h-screen bg-[#020202] text-white font-sans overflow-x-hidden">
+      <header className="sticky top-0 z-[60] bg-[#020202]/95 backdrop-blur-3xl px-6 py-5 border-b border-white/[0.03]">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className="bg-zinc-900/80 p-1.5 rounded-2xl flex items-center gap-2 border border-white/[0.05]">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-xl border border-white/[0.02]">
+              <Coins size={14} className="text-yellow-400" />
+              <span className="text-[12px] font-black tracking-tight">{uniCoins?.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-xl border border-white/[0.02]">
+              <Flame size={14} className="text-orange-500" />
+              <span className="text-[12px] font-black tracking-tight">{vibePoints}</span>
             </div>
           </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="mb-2 flex items-center gap-2 text-sm font-black"><BookHeart size={16} /> Daily Missions</div>
-            <div className="space-y-2">
-              {(daily?.missions || []).map((mission) => (
-                <button
-                  key={mission.id}
-                  onClick={() => handleMissionComplete(mission.id, !!mission.done)}
-                  className={`w-full rounded-lg px-2 py-2 text-left text-xs ${mission.done ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}
-                >
-                  {mission.done ? '✓ ' : ''}{mission.title}
-                  <span className="ml-1 text-[10px] opacity-70">+{mission.rewardScore} points / +{mission.rewardCoins} UniCoins</span>
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-3">
+             <Radio size={12} className="text-primary animate-pulse" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Global Hub</span>
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Brain size={16} /> Compatibility Puzzle</div>
-            {daily?.puzzle ? (
-              <>
-                <p className="text-xs text-zinc-600 dark:text-zinc-300">{daily.puzzle.question}</p>
-                {daily.puzzleSolved ? (
-                  <p className="mt-2 text-xs font-semibold text-emerald-600">Solved. +{daily.puzzle.rewardScore} points / +{daily.puzzle.rewardCoins} UniCoins</p>
-                ) : (
-                  <>
-                    <input
-                      value={puzzleInput}
-                      onChange={(e) => setPuzzleInput(e.target.value)}
-                      placeholder="Your answer"
-                      className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-                    />
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" onClick={handlePuzzleSubmit}>Submit</Button>
-                      <Button size="sm" variant="outline" onClick={handleHintUnlock}>Hint (-3 UniCoins)</Button>
+        <div className="max-w-lg mx-auto mt-6">
+          <div className="bg-zinc-900/50 p-1 rounded-2xl border border-white/[0.03] flex gap-1 overflow-x-auto no-scrollbar">
+             {(['pulse', 'battles', 'quests', 'vibe-check', 'shop'] as TabType[]).map(t => (
+               <button key={t} onClick={() => setActiveTab(t)} className={`flex-1 min-w-[85px] relative py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  {activeTab === t && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-primary shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                  <span className="relative z-10">{t.replace('-', ' ')}</span>
+               </button>
+             ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-lg mx-auto px-5 pt-8 pb-32">
+        <AnimatePresence mode="wait">
+          {activeTab === 'pulse' && (
+            <motion.div key="pulse" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+               <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-[3rem] border border-white/[0.05] relative overflow-hidden group">
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">Broadcast Hub</h2>
+                    <p className="text-xs font-bold text-zinc-500 mb-8 uppercase tracking-widest">Alert the campus of current energy</p>
+                    {!isPosting ? (
+                      <button onClick={() => setIsPosting(true)} className="w-full h-14 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
+                        <Plus size={16} /> Update Signal
+                      </button>
+                    ) : (
+                      <div className="space-y-4 animate-in slide-in-from-top-2 duration-300 text-left">
+                        <textarea value={newPulse} onChange={e => setNewPulse(e.target.value)} placeholder="What's happening?" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-sm font-medium focus:ring-1 focus:ring-primary outline-none min-h-[100px]" />
+                        <div className="flex gap-2">
+                          <Button onClick={() => setIsPosting(false)} className="flex-1 h-12 bg-zinc-800 text-xs font-black uppercase tracking-widest rounded-xl text-white">Cancel</Button>
+                          <Button onClick={() => { toast.success('Pulse Broadcasted!'); setIsPosting(false); setNewPulse(''); }} className="flex-1 h-12 bg-primary text-xs font-black uppercase tracking-widest rounded-xl text-white">Send</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/20 rounded-full blur-[100px] pointer-events-none group-hover:bg-primary/30 transition-all duration-700" />
+               </div>
+               <div className="space-y-4">
+                  {pulses.map((p, i) => (
+                    <div key={i} className="bg-zinc-900/40 border border-white/[0.02] p-6 rounded-[2.5rem] flex gap-4 backdrop-blur-3xl">
+                       <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center font-black italic text-primary text-xs">{p.fromName?.[0]}</div>
+                       <div className="flex-1">
+                          <div className="flex justify-between items-center mb-1">
+                             <span className="text-[11px] font-black text-primary uppercase tracking-widest">{p.fromName}</span>
+                             <span className="text-[9px] font-bold text-zinc-600 uppercase">Just Now</span>
+                          </div>
+                          <p className="text-sm text-zinc-300 font-medium leading-relaxed italic opacity-80">"{p.content}"</p>
+                       </div>
                     </div>
-                    {daily.hintUnlocked && <p className="mt-2 text-[11px] text-primary">Hint: {daily.puzzle.hint}</p>}
-                  </>
-                )}
-              </>
-            ) : (
-              <p className="text-xs text-zinc-500">Loading puzzle...</p>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Flame size={16} /> {daily?.battle?.title || 'Campus Battle'}</div>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => handleBattleVote('left')} className={`rounded-lg px-2 py-2 text-xs font-bold ${daily?.battle?.vote === 'left' ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{daily?.battle?.left || 'Tea Person'}</button>
-              <button onClick={() => handleBattleVote('right')} className={`rounded-lg px-2 py-2 text-xs font-bold ${daily?.battle?.vote === 'right' ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{daily?.battle?.right || 'Coffee Person'}</button>
-            </div>
-            <p className="mt-2 text-[11px] text-zinc-500">Vote reward: +{daily?.battle?.rewardScore || 10} points / +{daily?.battle?.rewardCoins || 1} UniCoins</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Compass size={16} /> Mood Discovery</div>
-            <div className="grid grid-cols-3 gap-2 text-[11px]">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'study', label: 'Study' },
-                { id: 'chill', label: 'Chill' },
-                { id: 'explore', label: 'Explore' },
-                { id: 'deep', label: 'Deep Talk' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setMood(item.id as typeof mood)}
-                  className={`rounded-lg px-2 py-1.5 font-bold ${mood === item.id ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="relative h-[550px] w-full max-w-[400px] lg:h-[620px] lg:max-w-[460px]">
-          <AnimatePresence>
-            <motion.div
-              key={currentProfile.id}
-              style={{ x, rotate, opacity }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.x > 100) handleSwipe('right');
-                else if (info.offset.x < -100) handleSwipe('left');
-              }}
-              className="absolute inset-0 cursor-grab active:cursor-grabbing"
-            >
-              {/* Swipe indicators */}
-              <motion.div style={{ opacity: likeOpacity }} className="absolute left-8 top-10 z-50 rounded-lg border-4 border-green-500 bg-white/10 px-4 py-2 text-3xl font-black uppercase tracking-widest text-green-500 backdrop-blur-sm -rotate-12">
-                Like
-              </motion.div>
-              <motion.div style={{ opacity: nopeOpacity }} className="absolute right-8 top-10 z-50 rounded-lg border-4 border-red-500 bg-white/10 px-4 py-2 text-3xl font-black uppercase tracking-widest text-red-500 backdrop-blur-sm rotate-12">
-                Nope
-              </motion.div>
-
-              <ProfileCard user={currentProfile} matchScore={currentProfile.matchScore} />
+                  ))}
+               </div>
             </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-12 flex items-center justify-center gap-4">
-          <button 
-            onClick={() => handleSwipe('left')}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-rose-500 shadow-xl transition-transform active:scale-90 dark:bg-zinc-900"
-          >
-            <X size={28} />
-          </button>
-          <button className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-secondary shadow-xl transition-transform active:scale-90 dark:bg-zinc-900">
-            <Star size={20} fill="currentColor" />
-          </button>
-          <button 
-            onClick={() => handleSwipe('right')}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-emerald-500 shadow-xl transition-transform active:scale-95 dark:bg-zinc-900"
-          >
-            <Heart size={32} fill="currentColor" />
-          </button>
-          <button className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-amber-500 shadow-xl transition-transform active:scale-90 dark:bg-zinc-900">
-            <RotateCcw size={20} />
-          </button>
-        </div>
-      </div>
-
-      <Modal
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        title="Notifications"
-      >
-        <div className="space-y-4">
-          {notifications.length > 0 ? (
-            <>
-              <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                {notifications.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (item.link) {
-                        navigate(item.link);
-                        setIsNotificationsOpen(false);
-                      }
-                    }}
-                    className={`rounded-xl border p-3 ${
-                      item.isRead
-                        ? 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60'
-                        : 'border-pink-200 bg-pink-50 dark:border-pink-900/60 dark:bg-pink-950/30'
-                    } ${item.link ? 'w-full text-left hover:border-primary/40' : 'w-full text-left'}`}
-                  >
-                    <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
-                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{item.body}</p>
-                    <p className="mt-2 text-[11px] text-zinc-400">{new Date(item.receivedAt).toLocaleString()}</p>
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={clearNotifications}>Clear All</Button>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800/60">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">No notifications yet.</p>
-              <p className="mt-1 text-xs text-zinc-500">When someone sends an update, it will show up here.</p>
-            </div>
           )}
-        </div>
-      </Modal>
+
+          {activeTab === 'vibe-check' && (
+            <motion.div key="vibe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+               <div className="text-center">
+                  <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-2">Vibe Radar</h2>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Select your activity to join the hub</p>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: 'Gaming', icon: Gamepad2, color: 'text-indigo-400', bg: 'bg-indigo-400/5' },
+                    { id: 'Studying', icon: Laptop, color: 'text-emerald-400', bg: 'bg-emerald-400/5' },
+                    { id: 'Coffee', icon: Coffee, color: 'text-amber-500', bg: 'bg-amber-500/5' },
+                    { id: 'Party', icon: Music, color: 'text-rose-400', bg: 'bg-rose-400/5' },
+                    { id: 'Library', icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-400/5' },
+                    { id: 'Incognito', icon: GhostIcon, color: 'text-zinc-400', bg: 'bg-zinc-400/5' },
+                  ].map((cat) => (
+                    <button 
+                      key={cat.id} 
+                      onClick={() => handleUpdateVibe(cat.id)}
+                      className={`relative p-8 rounded-[3rem] flex flex-col items-center justify-center border transition-all active:scale-95 group ${userVibe === cat.id ? 'bg-primary border-primary' : 'bg-zinc-900 border-white/[0.03]'}`}
+                    >
+                       <cat.icon className={`mb-4 transition-transform group-hover:scale-125 ${userVibe === cat.id ? 'text-white' : cat.color}`} size={32} />
+                       <span className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${userVibe === cat.id ? 'text-white' : 'text-zinc-200'}`}>{cat.id}</span>
+                       <span className={`text-[8px] font-bold ${userVibe === cat.id ? 'text-white/70' : 'text-zinc-600'}`}>
+                          {vibeStats[cat.id] || 0} active
+                       </span>
+                    </button>
+                  ))}
+               </div>
+
+               <button 
+                  onClick={handleRollDice} 
+                  disabled={isRolling}
+                  className="w-full bg-primary p-12 rounded-[4rem] text-center shadow-2xl relative overflow-hidden group active:scale-95 transition-all"
+               >
+                  <motion.div animate={isRolling ? { rotate: 360 } : {}} transition={{ repeat: Infinity, duration: 0.5 }}>
+                     <Dice5 size={60} className="mx-auto mb-4 text-white drop-shadow-[0_0_20px_white]" />
+                  </motion.div>
+                  <h3 className="text-2xl font-black uppercase italic italic tracking-tighter text-white mb-2">Mystery Social</h3>
+                  <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-8">Pairing with someone active nearby...</p>
+                  <div className="px-8 py-4 bg-white text-black rounded-[2rem] text-[10px] font-black uppercase tracking-widest inline-block">
+                    {isRolling ? 'Scanning...' : 'Roll the Dice'}
+                  </div>
+                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+               </button>
+            </motion.div>
+          )}
+
+          {activeTab === 'quests' && (
+            <motion.div key="quests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+               <div className="bg-white p-12 rounded-[4rem] text-black shadow-2xl relative overflow-hidden">
+                  <Trophy size={100} className="absolute -right-5 -top-5 text-zinc-100 opacity-20" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] mb-2 opacity-50">Career Path</p>
+                  <h2 className="text-6xl font-black italic uppercase tracking-tighter">LVL {Math.floor(vibePoints / 1000) + 1}</h2>
+               </div>
+               <div className="space-y-4">
+                  {missions.map(m => (
+                    <div key={m.id} className="bg-zinc-900 border border-white/[0.03] p-8 rounded-[3rem] relative group overflow-hidden">
+                       <div className="flex justify-between items-start mb-6">
+                          <div>
+                            <p className="text-[8px] font-black text-primary uppercase tracking-[0.3em] mb-1">{m.status}</p>
+                            <h4 className="text-2xl font-black italic uppercase tracking-tighter">{m.title}</h4>
+                          </div>
+                          <div className="px-4 py-2 bg-yellow-400 text-black rounded-xl text-[10px] font-black flex items-center gap-2">
+                             <Coins size={12} fill="currentColor" /> +{m.reward}
+                          </div>
+                       </div>
+                       <div className="w-full h-3 bg-black rounded-full overflow-hidden border border-white/5 p-0.5">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${(m.progress/m.total)*100}%` }} className="h-full bg-primary rounded-full" />
+                       </div>
+                       <div className="mt-4 flex justify-between items-center text-[9px] font-black text-zinc-600 uppercase">
+                          <span>Progress {m.progress}/{m.total}</span>
+                          <span className="text-primary flex items-center gap-1 cursor-pointer">Accept Mission <ChevronRight size={10} /></span>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'battles' && (
+            <motion.div key="battles" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+               {battles.map((b) => (
+                 <div key={b.id} className="relative py-4">
+                    <h4 className="text-2xl font-black italic uppercase mb-8 text-center tracking-tighter">{b.title}</h4>
+                    <div className="grid grid-cols-2 gap-4 relative">
+                       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-black border-[6px] border-[#020202] h-14 w-14 rounded-full flex items-center justify-center font-black italic text-[11px] shadow-2xl">VS</div>
+                       <button onClick={() => handleVote(b.id, 'left')} className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.left.color} flex flex-col items-center justify-center border border-white/10 active:scale-95 transition-all shadow-xl`}>
+                          <span className="text-5xl font-black mb-1">{b.left.votes}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{b.left.name}</span>
+                       </button>
+                       <button onClick={() => handleVote(b.id, 'right')} className={`aspect-square rounded-[3.5rem] bg-gradient-to-br ${b.right.color} flex flex-col items-center justify-center border border-white/10 active:scale-95 transition-all shadow-xl`}>
+                          <span className="text-5xl font-black mb-1">{b.right.votes}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{b.right.name}</span>
+                       </button>
+                    </div>
+                 </div>
+               ))}
+            </motion.div>
+          )}
+
+          {activeTab === 'shop' && (
+            <motion.div key="shop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+               {[
+                 { title: 'Super Ghost', price: 500, desc: 'Hide from all radar', icon: GhostIcon, color: 'text-zinc-600' },
+                 { title: 'Golden Crown', price: 1000, desc: 'Identity badge', icon: Crown, color: 'text-yellow-400' },
+                 { title: 'Global Map', price: 250, desc: 'See activity heatmap', icon: Map, color: 'text-emerald-400' },
+                 { title: 'Pulse Boost', price: 100, desc: 'Pin your broadcast', icon: Zap, color: 'text-primary' },
+               ].map((item, i) => (
+                 <div key={i} className="bg-zinc-900 border border-white/[0.05] p-8 rounded-[3rem] flex items-center justify-between group">
+                    <div className="flex items-center gap-6">
+                       <div className="h-14 w-14 rounded-2xl bg-black flex items-center justify-center">
+                          <item.icon size={28} className={item.color} />
+                       </div>
+                       <div>
+                          <h4 className="text-lg font-black uppercase italic tracking-tight">{item.title}</h4>
+                          <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{item.desc}</p>
+                       </div>
+                    </div>
+                    <button className="h-12 px-6 bg-white text-black rounded-2xl font-black text-xs hover:bg-primary hover:text-white transition-colors">
+                       {item.price}
+                    </button>
+                 </div>
+               ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 bg-[#020202]/95 backdrop-blur-3xl border-t border-white/[0.03] flex items-center justify-around px-8">
+        {[
+          { icon: Compass, label: 'HUB', path: '/', active: true },
+          { icon: Search, label: 'FIND', path: '/search' },
+          { icon: Heart, label: 'MATCH', path: '/matches' },
+          { icon: MessageCircle, label: 'CHAT', path: '/chat' },
+          { icon: UserIcon, label: 'ME', path: '/profile' }
+        ].map((item, i) => (
+          <button key={i} onClick={() => navigate(item.path)} className={`flex flex-col items-center gap-1 transition-all ${item.active ? 'text-primary' : 'text-zinc-600'}`}>
+            <item.icon size={22} strokeWidth={item.active ? 2.5 : 2} />
+            <span className="text-[8px] font-black tracking-tighter uppercase">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 };

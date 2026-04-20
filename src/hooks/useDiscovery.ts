@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, getDocs, limit, doc, setDoc, serverTimestamp, getDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
@@ -35,6 +35,12 @@ export const useDiscovery = () => {
     return Boolean(profile.department && profile.year && profile.lookingFor && interestCount >= 5);
   };
 
+  const hasBasicProfile = (profile: DiscoveryProfile) => {
+    if (!profile) return false;
+    const interestCount = Object.values(profile.interests || {}).flat().length;
+    return Boolean(profile.name || profile.username) && Boolean(profile.department || profile.bio || interestCount > 0);
+  };
+
   const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -60,6 +66,15 @@ export const useDiscovery = () => {
       return { isMatch: false, requestSent: false, verificationRequired: true };
     }
 
+    const tokenResult = await user.getIdTokenResult();
+    const tokenEmail = String(tokenResult.claims.email || user.email || '');
+    const tokenVerified = tokenResult.claims.email_verified === true;
+    const isDiuEmail = /@diu\.edu\.bd$/i.test(tokenEmail);
+
+    if (!tokenVerified || !isDiuEmail) {
+      return { isMatch: false, requestSent: false, verificationRequired: true };
+    }
+
     try {
 
       await setDoc(
@@ -80,12 +95,24 @@ export const useDiscovery = () => {
       const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, targetProfile.id));
       const incomingRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
 
+      const safeGetRequestDoc = async (refToRead: typeof outgoingRequestRef) => {
+        try {
+          return await getDoc(refToRead);
+        } catch (readErr: any) {
+          if (readErr?.code === 'permission-denied') {
+            // Some deployed rules deny get on non-existing docs; treat as absent and continue.
+            return null;
+          }
+          throw readErr;
+        }
+      };
+
       const [outgoingSnap, incomingSnap] = await Promise.all([
-        getDoc(outgoingRequestRef),
-        getDoc(incomingRequestRef),
+        safeGetRequestDoc(outgoingRequestRef),
+        safeGetRequestDoc(incomingRequestRef),
       ]);
 
-      if (outgoingSnap.exists()) {
+      if (outgoingSnap?.exists()) {
         const outgoingStatus = String(outgoingSnap.data()?.status || '');
 
         if (outgoingStatus === 'pending') {
@@ -96,7 +123,7 @@ export const useDiscovery = () => {
           return { isMatch: true, requestSent: false, alreadyMatched: true };
         }
 
-        if (outgoingStatus === 'declined' || outgoingStatus === 'cancelled') {
+        if (outgoingStatus !== 'pending' && outgoingStatus !== 'accepted') {
           await updateDoc(outgoingRequestRef, {
             status: 'pending',
             fromName: userData?.name || user.displayName || 'Someone',
@@ -115,6 +142,7 @@ export const useDiscovery = () => {
               metadata: {
                 fromUid: user.uid,
                 resend: true,
+                previousStatus: outgoingStatus || 'unknown',
               },
             });
           } catch (notifyErr) {
@@ -125,7 +153,7 @@ export const useDiscovery = () => {
         }
       }
 
-      if (incomingSnap.exists()) {
+      if (incomingSnap?.exists()) {
         const incomingStatus = String(incomingSnap.data()?.status || '');
         if (incomingStatus === 'pending') {
           return { isMatch: false, requestSent: false, incomingPending: true };
@@ -191,20 +219,41 @@ export const useDiscovery = () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Get IDs of users to exclude (blocked, already matched, etc.)
+      // 1. Get IDs of users to exclude (self/blocked/current relations)
       const excludedIds = new Set([
         user.uid,
         ...(userData.blockedUsers || []),
       ]);
 
-      // Exclude only users already liked/requested. Passed users can reappear later.
-      const swipesRef = collection(db, 'swipes');
-      const swipesQ = query(swipesRef, where('fromUid', '==', user.uid), limit(300));
-      const swipeSnapshot = await withTimeout(getDocs(swipesQ));
-      swipeSnapshot.forEach((swipeDoc) => {
-        const swipeData = swipeDoc.data();
-        if (swipeData?.toUid && swipeData?.direction === 'like') {
-          excludedIds.add(swipeData.toUid);
+      // Exclude matched users and currently pending request users to keep flow clean.
+      const matchesRef = collection(db, 'matches');
+      const incomingReqRef = collection(db, 'requests');
+      const outgoingReqRef = collection(db, 'requests');
+
+      const [matchesSnap, incomingReqSnap, outgoingReqSnap] = await Promise.all([
+        withTimeout(getDocs(query(matchesRef, where('users', 'array-contains', user.uid), limit(200)))),
+        withTimeout(getDocs(query(incomingReqRef, where('toUid', '==', user.uid), limit(200)))),
+        withTimeout(getDocs(query(outgoingReqRef, where('fromUid', '==', user.uid), limit(200)))),
+      ]);
+
+      matchesSnap.forEach((m) => {
+        const usersArr = (m.data()?.users || []) as string[];
+        usersArr.forEach((id) => {
+          if (id && id !== user.uid) excludedIds.add(id);
+        });
+      });
+
+      incomingReqSnap.forEach((r) => {
+        const data: any = r.data();
+        if (data?.status === 'pending' && data?.fromUid) {
+          excludedIds.add(data.fromUid);
+        }
+      });
+
+      outgoingReqSnap.forEach((r) => {
+        const data: any = r.data();
+        if (data?.status === 'pending' && data?.toUid) {
+          excludedIds.add(data.toUid);
         }
       });
 
@@ -214,27 +263,39 @@ export const useDiscovery = () => {
       const q = query(usersRef, limit(300));
 
       const querySnapshot = await withTimeout(getDocs(q));
-      const fetchedProfiles: DiscoveryProfile[] = [];
+      const strictProfiles: DiscoveryProfile[] = [];
+      const relaxedProfiles: DiscoveryProfile[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data() as DiscoveryProfile;
         const blockedCurrentUser = (data.blockedUsers || []).includes(user.uid);
 
-        if (!excludedIds.has(doc.id) && hasCompleteProfile(data) && !data.isProfileLocked && !data.isBanned && !blockedCurrentUser) {
-          // 3. Calculate match score
-          const matchResult = calculateMatchScore(userData, data);
-          fetchedProfiles.push({
-            ...data,
-            id: doc.id,
-            matchScore: matchResult.score,
-            commonInterests: matchResult.commonInterests,
-          });
+        if (excludedIds.has(doc.id) || data.isProfileLocked || data.isBanned || blockedCurrentUser) return;
+
+        // 3. Calculate match score
+        const matchResult = calculateMatchScore(userData, data);
+        const profileRow = {
+          ...data,
+          id: doc.id,
+          matchScore: matchResult.score,
+          commonInterests: matchResult.commonInterests,
+        };
+
+        if (hasCompleteProfile(data)) {
+          strictProfiles.push(profileRow);
+          return;
+        }
+
+        if (hasBasicProfile(data)) {
+          relaxedProfiles.push(profileRow);
         }
       });
 
-      // Sort by best match score
-      fetchedProfiles.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
-      setProfiles(fetchedProfiles);
+      // Prefer complete profiles. If none are available, show a relaxed fallback feed.
+      const finalProfiles = strictProfiles.length > 0 ? strictProfiles : relaxedProfiles;
+
+      finalProfiles.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+      setProfiles(finalProfiles);
     } catch (err: any) {
       if (!hasRetried && err?.code === 'permission-denied') {
         try {
