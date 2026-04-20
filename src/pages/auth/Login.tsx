@@ -25,7 +25,14 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || 'Invalid email or password');
+      const code = String(error?.code || '');
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        toast.error('Invalid email or password. Please try again.');
+      } else if (code === 'auth/too-many-requests') {
+        toast.error('Too many attempts. Try again in a few minutes.');
+      } else {
+        toast.error(error.message || 'Unable to sign in right now.');
+      }
     } finally {
       setLoading(false);
     }

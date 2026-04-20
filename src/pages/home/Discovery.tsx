@@ -163,22 +163,36 @@ const Discovery = () => {
   const handleSwipe = async (direction: 'left' | 'right') => {
     if (!currentProfile) return;
 
-    if (direction === 'right') {
-      const result = await likeProfile(currentProfile);
-      if (result.requestSent) {
-        toast.success(`Request sent to ${currentProfile.name}!`, { icon: '📩' });
-      } else if (result.alreadyRequested) {
-        toast('Request already pending.', { icon: '⏳' });
-      } else if (result.incomingPending) {
-        toast('They already requested you. Accept from Matches.', { icon: '💌' });
+    try {
+      if (direction === 'right') {
+        const result = await likeProfile(currentProfile);
+        if (result.verificationRequired) {
+          toast.error('Verify your DIU email first, then try again.');
+        } else if (result.requestSent) {
+          toast.success(`Request sent to ${currentProfile.name}!`, { icon: '📩' });
+        } else if (result.alreadyRequested) {
+          toast('Request already pending.', { icon: '⏳' });
+        } else if (result.incomingPending) {
+          toast('They already requested you. Accept from Matches.', { icon: '💌' });
+        } else if (result.alreadyMatched) {
+          toast('You are already connected. Open chat from Matches.', { icon: '✅' });
+        } else {
+          toast.success(`Connection interest saved for ${currentProfile.name}.`, { icon: '❤️' });
+        }
       } else {
-        toast.success(`Connection interest saved for ${currentProfile.name}.`, { icon: '❤️' });
+        await passProfile(currentProfile);
       }
-    } else {
-      await passProfile(currentProfile);
-    }
 
-    setCurrentIndex(prev => prev + 1);
+      setCurrentIndex(prev => prev + 1);
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'permission-denied') {
+        toast.error('Request blocked by permissions. Your email is already verified; refresh session (sign out/in) or publish latest rules.');
+      } else {
+        toast.error('Could not send request. Please try again.');
+      }
+      console.error('Swipe action failed:', err);
+    }
   };
 
   if (loading) {

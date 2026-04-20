@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
+import { Search as SearchIcon, SlidersHorizontal, Heart, X, User } from 'lucide-react';
 import {
   collection,
+  doc,
   documentId,
   getDocs,
+  getDoc,
   limit,
   orderBy,
   query,
+  serverTimestamp,
+  setDoc,
   startAfter,
+  updateDoc,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -17,6 +22,9 @@ import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@
 import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
+import { createAppNotification } from '@/lib/notifications';
+import { toast } from 'react-hot-toast';
 
 const Search = () => {
   const { user, userData } = useAuth();
@@ -27,6 +35,192 @@ const Search = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedLookingFor, setSelectedLookingFor] = useState('');
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const getSwipeDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
+  const getRequestDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
+
+  const closeProfileModal = () => {
+    if (actionLoading) return;
+    setSelectedProfile(null);
+  };
+
+  const handleProfilePass = async () => {
+    if (!user || !selectedProfile) return;
+
+    try {
+      setActionLoading(true);
+      await setDoc(
+        doc(db, 'swipes', getSwipeDocId(user.uid, selectedProfile.id)),
+        {
+          fromUid: user.uid,
+          toUid: selectedProfile.id,
+          direction: 'pass',
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      toast('Profile skipped.', { icon: '👋' });
+      setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
+      setSelectedProfile(null);
+    } catch (error) {
+      console.error('Pass action failed:', error);
+      toast.error('Could not skip this profile. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleProfileConnect = async (hasRetried = false) => {
+    if (!user || !userData || !selectedProfile) return;
+
+    if (!user.emailVerified) {
+      toast.error('Verify your DIU email first, then try again.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      await setDoc(
+        doc(db, 'swipes', getSwipeDocId(user.uid, selectedProfile.id)),
+        {
+          fromUid: user.uid,
+          toUid: selectedProfile.id,
+          direction: 'like',
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, selectedProfile.id));
+      const incomingRequestRef = doc(db, 'requests', getRequestDocId(selectedProfile.id, user.uid));
+
+      const [outgoingSnap, incomingSnap] = await Promise.all([
+        getDoc(outgoingRequestRef),
+        getDoc(incomingRequestRef),
+      ]);
+
+      if (outgoingSnap.exists()) {
+        const outgoingStatus = String(outgoingSnap.data()?.status || '');
+
+        if (outgoingStatus === 'pending') {
+          toast('Request already pending.', { icon: '⏳' });
+          setSelectedProfile(null);
+          return;
+        }
+
+        if (outgoingStatus === 'accepted') {
+          toast('You are already connected.', { icon: '✅' });
+          setSelectedProfile(null);
+          return;
+        }
+
+        if (outgoingStatus === 'declined' || outgoingStatus === 'cancelled') {
+          await updateDoc(outgoingRequestRef, {
+            status: 'pending',
+            fromName: userData?.name || user.displayName || 'Someone',
+            fromPhotoURL: userData?.photoURL || user.photoURL || null,
+            updatedAt: serverTimestamp(),
+          });
+
+          try {
+            await createAppNotification({
+              toUid: selectedProfile.id,
+              fromUid: user.uid,
+              type: 'request',
+              title: 'New connection request',
+              body: `${userData?.name || 'A student'} sent you a request.`,
+              link: '/matches',
+              metadata: {
+                fromUid: user.uid,
+                resend: true,
+              },
+            });
+          } catch (notifyErr) {
+            console.warn('Request sent but notification failed:', notifyErr);
+          }
+
+          toast.success(`Request sent to ${selectedProfile.name || 'student'}!`, { icon: '📩' });
+          setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
+          setSelectedProfile(null);
+          return;
+        }
+      }
+
+      if (incomingSnap.exists()) {
+        const incomingStatus = String(incomingSnap.data()?.status || '');
+        if (incomingStatus === 'pending') {
+          toast('They already requested you. Accept from Matches.', { icon: '💌' });
+          setSelectedProfile(null);
+          return;
+        }
+        if (incomingStatus === 'accepted') {
+          toast('You are already connected.', { icon: '✅' });
+          setSelectedProfile(null);
+          return;
+        }
+      }
+
+      await setDoc(
+        outgoingRequestRef,
+        {
+          fromUid: user.uid,
+          toUid: selectedProfile.id,
+          status: 'pending',
+          fromName: userData?.name || user.displayName || 'Someone',
+          fromPhotoURL: userData?.photoURL || user.photoURL || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+
+      try {
+        await createAppNotification({
+          toUid: selectedProfile.id,
+          fromUid: user.uid,
+          type: 'request',
+          title: 'New connection request',
+          body: `${userData?.name || 'A student'} sent you a request.`,
+          link: '/matches',
+          metadata: {
+            fromUid: user.uid,
+          },
+        });
+      } catch (notifyErr) {
+        console.warn('Request sent but notification failed:', notifyErr);
+      }
+
+      toast.success(`Request sent to ${selectedProfile.name || 'student'}!`, { icon: '📩' });
+      setProfiles((prev) => prev.filter((p) => p.id !== selectedProfile.id));
+      setSelectedProfile(null);
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'permission-denied' && !hasRetried) {
+        try {
+          await user.reload();
+          await user.getIdToken(true);
+          await handleProfileConnect(true);
+          return;
+        } catch (refreshErr) {
+          console.error('Search connect token refresh failed:', refreshErr);
+        }
+      }
+
+      if (code === 'permission-denied') {
+        const step = (err?.message || '').toLowerCase().includes('notification') ? 'notification' : 'request';
+        toast.error(`Request blocked by permissions at ${step} step. No re-verification needed: refresh session (sign out/in) or publish latest rules.`);
+      } else {
+        toast.error('Could not send request. Please try again.');
+      }
+      console.error('Connect action failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const fetchBrowsingProfiles = async () => {
     if (!user || !userData) {
@@ -237,12 +431,45 @@ const Search = () => {
           ))}
         </div>
       ) : filteredProfiles.length > 0 ? (
-        <ProfileGrid profiles={filteredProfiles} onProfileClick={(p) => console.log(p)} />
+        <ProfileGrid profiles={filteredProfiles} onProfileClick={(p) => setSelectedProfile(p)} />
       ) : (
         <div className="mt-20 text-center">
           <p className="font-medium text-zinc-500">No students found matching your search.</p>
         </div>
       )}
+
+      <Modal isOpen={!!selectedProfile} onClose={closeProfileModal} title="Profile Actions">
+        {selectedProfile && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <div className="h-14 w-14 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                {selectedProfile.photoURL ? (
+                  <img src={selectedProfile.photoURL} alt={selectedProfile.name || 'Profile'} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-zinc-500 dark:text-zinc-300">
+                    <User size={20} />
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedProfile.name || selectedProfile.username || 'Student'}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-300">{selectedProfile.department || 'Department not set'} • Match {selectedProfile.matchScore || 0}%</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-500 dark:text-zinc-300">Send a connection request or skip this profile from search results.</p>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={handleProfilePass} disabled={actionLoading}>
+                <X size={16} className="mr-1" />Pass
+              </Button>
+              <Button className="flex-1" onClick={() => handleProfileConnect()} disabled={actionLoading}>
+                <Heart size={16} className="mr-1" />Connect
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

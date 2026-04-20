@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
@@ -50,67 +50,135 @@ export const useDiscovery = () => {
     }
   };
 
-  const registerSwipe = async (targetProfile: DiscoveryProfile, direction: 'like' | 'pass') => {
+  const registerSwipe = async (
+    targetProfile: DiscoveryProfile,
+    direction: 'like' | 'pass',
+    hasRetried = false
+  ) => {
     if (!user) return { isMatch: false, requestSent: false };
-
-    await setDoc(
-      doc(db, 'swipes', getSwipeDocId(user.uid, targetProfile.id)),
-      {
-        fromUid: user.uid,
-        toUid: targetProfile.id,
-        direction,
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    if (direction !== 'like') {
-      return { isMatch: false, requestSent: false };
+    if (!user.emailVerified) {
+      return { isMatch: false, requestSent: false, verificationRequired: true };
     }
 
-    const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, targetProfile.id));
-    const incomingRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
+    try {
 
-    const [outgoingSnap, incomingSnap] = await Promise.all([
-      getDoc(outgoingRequestRef),
-      getDoc(incomingRequestRef),
-    ]);
+      await setDoc(
+        doc(db, 'swipes', getSwipeDocId(user.uid, targetProfile.id)),
+        {
+          fromUid: user.uid,
+          toUid: targetProfile.id,
+          direction,
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
 
-    if (outgoingSnap.exists() && outgoingSnap.data()?.status === 'pending') {
-      return { isMatch: false, requestSent: false, alreadyRequested: true };
+      if (direction !== 'like') {
+        return { isMatch: false, requestSent: false };
+      }
+
+      const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, targetProfile.id));
+      const incomingRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
+
+      const [outgoingSnap, incomingSnap] = await Promise.all([
+        getDoc(outgoingRequestRef),
+        getDoc(incomingRequestRef),
+      ]);
+
+      if (outgoingSnap.exists()) {
+        const outgoingStatus = String(outgoingSnap.data()?.status || '');
+
+        if (outgoingStatus === 'pending') {
+          return { isMatch: false, requestSent: false, alreadyRequested: true };
+        }
+
+        if (outgoingStatus === 'accepted') {
+          return { isMatch: true, requestSent: false, alreadyMatched: true };
+        }
+
+        if (outgoingStatus === 'declined' || outgoingStatus === 'cancelled') {
+          await updateDoc(outgoingRequestRef, {
+            status: 'pending',
+            fromName: userData?.name || user.displayName || 'Someone',
+            fromPhotoURL: userData?.photoURL || user.photoURL || null,
+            updatedAt: serverTimestamp(),
+          });
+
+          try {
+            await createAppNotification({
+              toUid: targetProfile.id,
+              fromUid: user.uid,
+              type: 'request',
+              title: 'New connection request',
+              body: `${userData?.name || 'A student'} sent you a request.`,
+              link: '/matches',
+              metadata: {
+                fromUid: user.uid,
+                resend: true,
+              },
+            });
+          } catch (notifyErr) {
+            console.warn('Request sent but notification failed:', notifyErr);
+          }
+
+          return { isMatch: false, requestSent: true, resent: true };
+        }
+      }
+
+      if (incomingSnap.exists()) {
+        const incomingStatus = String(incomingSnap.data()?.status || '');
+        if (incomingStatus === 'pending') {
+          return { isMatch: false, requestSent: false, incomingPending: true };
+        }
+        if (incomingStatus === 'accepted') {
+          return { isMatch: true, requestSent: false, alreadyMatched: true };
+        }
+      }
+
+      await setDoc(
+        outgoingRequestRef,
+        {
+          fromUid: user.uid,
+          toUid: targetProfile.id,
+          status: 'pending',
+          fromName: userData?.name || user.displayName || 'Someone',
+          fromPhotoURL: userData?.photoURL || user.photoURL || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+
+      try {
+        await createAppNotification({
+          toUid: targetProfile.id,
+          fromUid: user.uid,
+          type: 'request',
+          title: 'New connection request',
+          body: `${userData?.name || 'A student'} sent you a request.`,
+          link: '/matches',
+          metadata: {
+            fromUid: user.uid,
+          },
+        });
+      } catch (notifyErr) {
+        console.warn('Request sent but notification failed:', notifyErr);
+      }
+
+      return { isMatch: false, requestSent: true };
+    } catch (err: any) {
+      if (!hasRetried && err?.code === 'permission-denied') {
+        try {
+          await user.reload();
+          await user.getIdToken(true);
+          return await registerSwipe(targetProfile, direction, true);
+        } catch (refreshErr) {
+          console.error('Swipe token refresh failed:', refreshErr);
+        }
+      }
+
+      throw err;
     }
-
-    if (incomingSnap.exists() && incomingSnap.data()?.status === 'pending') {
-      return { isMatch: false, requestSent: false, incomingPending: true };
-    }
-
-    await setDoc(
-      outgoingRequestRef,
-      {
-        fromUid: user.uid,
-        toUid: targetProfile.id,
-        status: 'pending',
-        fromName: userData?.name || user.displayName || 'Someone',
-        fromPhotoURL: userData?.photoURL || user.photoURL || null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    await createAppNotification({
-      toUid: targetProfile.id,
-      fromUid: user.uid,
-      type: 'request',
-      title: 'New connection request',
-      body: `${userData?.name || 'A student'} sent you a request.`,
-      link: '/matches',
-      metadata: {
-        fromUid: user.uid,
-      },
-    });
-
-    return { isMatch: false, requestSent: true };
   };
 
   const fetchProfiles = async (hasRetried = false) => {
