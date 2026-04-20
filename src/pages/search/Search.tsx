@@ -1,6 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
-import { collection, query, getDocs, limit, orderBy, startAfter, documentId, type QueryDocumentSnapshot, type DocumentData } from 'firebase/firestore';
+import {
+  collection,
+  documentId,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
@@ -8,77 +18,78 @@ import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
-
 const Search = () => {
   const { user, userData } = useAuth();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedLookingFor, setSelectedLookingFor] = useState('');
+
+  const fetchBrowsingProfiles = async () => {
     if (!user || !userData) {
       setProfiles([]);
       setLoading(false);
       return;
     }
 
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedLookingFor, setSelectedLookingFor] = useState('');
-
+    setLoading(true);
+    try {
+      const usersRef = collection(db, 'users');
       const fetched: any[] = [];
 
       const pageSize = 200;
       const maxDocsToScan = 2000;
       let lastDoc: QueryDocumentSnapshot<DocumentData> | null = null;
-      let shouldContinue = true;
+      let scanned = 0;
 
-      while (shouldContinue && fetched.length < maxDocsToScan) {
+      while (scanned < maxDocsToScan) {
         const q = lastDoc
           ? query(usersRef, orderBy(documentId()), startAfter(lastDoc), limit(pageSize))
           : query(usersRef, orderBy(documentId()), limit(pageSize));
 
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
+        const snap = await getDocs(q);
+        if (snap.empty) {
           break;
         }
 
-        lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-        shouldContinue = querySnapshot.size === pageSize;
+        scanned += snap.size;
+        lastDoc = snap.docs[snap.docs.length - 1] ?? null;
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        snap.forEach((d) => {
+          const data = d.data();
           const isExcluded =
             !!data.isProfileLocked ||
             !!data.isBanned ||
-            (userData.blockedUsers || []).includes(doc.id) ||
+            (userData.blockedUsers || []).includes(d.id) ||
             (data.blockedUsers || []).includes(user.uid);
 
-          if (!isExcluded) {
-            const matchResult = calculateMatchScore(userData, data);
-            fetched.push({
-              id: doc.id,
-              ...data,
-              matchScore: Number.isFinite(matchResult.score) ? matchResult.score : 0,
-            });
-          }
-        });
-      }
-    try {
-            id: doc.id,
+          if (isExcluded) return;
+
+          const matchResult = calculateMatchScore(userData, data);
+          fetched.push({
+            id: d.id,
             ...data,
+            matchScore: Number.isFinite(matchResult.score) ? matchResult.score : 0,
+          });
+        });
+
+        if (snap.size < pageSize) {
+          break;
+        }
+      }
+
       fetched.sort((a, b) => {
         const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
         if (scoreDiff !== 0) return scoreDiff;
-        return String(a.name || '').localeCompare(String(b.name || ''));
-      });
-          });
-        }
+        return String(a.name || a.username || '').localeCompare(String(b.name || b.username || ''));
       });
 
-      // Keep the broad result set in memory, then apply local filters instantly.
-      fetched.sort((a, b) => b.matchScore - a.matchScore);
       setProfiles(fetched);
     } catch (error) {
-      console.error("Search error:", error);
+      console.error('Search error:', error);
     } finally {
       setLoading(false);
     }
@@ -105,33 +116,34 @@ const Search = () => {
       const matchesLookingFor = !selectedLookingFor || p.lookingFor === selectedLookingFor;
       const matchesDept = !selectedDept || p.department === selectedDept;
 
+      // Keep self hidden in browse mode; allow it only on explicit search.
       const isCurrentUser = p.id === user?.uid;
       const allowSelfResult = !isCurrentUser || (term.length > 0 && matchesSearch);
 
       return allowSelfResult && matchesSearch && matchesYear && matchesLookingFor && matchesDept;
     });
   }, [profiles, searchTerm, selectedYear, selectedLookingFor, selectedDept, user?.uid]);
-          Search shows all active accounts except blocked, locked, or banned profiles.
+
   return (
     <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">
       <div className="mb-6 flex flex-col gap-4">
         <h1 className="text-3xl font-black text-zinc-900 dark:text-white">Browse</h1>
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          Only completed profiles are shown in search results.
+          Search shows active accounts except blocked, locked, or banned profiles.
         </p>
-        
+
         <div className="flex gap-2">
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-            <Input 
-              placeholder="Search by name or department..." 
+            <Input
+              placeholder="Search by name or department..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
           >
@@ -139,7 +151,6 @@ const Search = () => {
           </Button>
         </div>
 
-        {/* Quick Dept Filters */}
         <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
           <button
             onClick={() => setSelectedDept('')}
@@ -147,7 +158,7 @@ const Search = () => {
           >
             All
           </button>
-          {DEPARTMENTS.slice(0, 6).map(dept => (
+          {DEPARTMENTS.slice(0, 6).map((dept) => (
             <button
               key={dept}
               onClick={() => setSelectedDept(dept)}
@@ -221,7 +232,7 @@ const Search = () => {
 
       {loading ? (
         <div className="grid grid-cols-2 gap-4">
-          {[1,2,3,4,5,6].map(i => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="aspect-[3/4] animate-pulse rounded-card bg-zinc-100 dark:bg-zinc-900" />
           ))}
         </div>
@@ -229,7 +240,7 @@ const Search = () => {
         <ProfileGrid profiles={filteredProfiles} onProfileClick={(p) => console.log(p)} />
       ) : (
         <div className="mt-20 text-center">
-          <p className="text-zinc-500 font-medium">No students found matching your search.</p>
+          <p className="font-medium text-zinc-500">No students found matching your search.</p>
         </div>
       )}
     </div>
