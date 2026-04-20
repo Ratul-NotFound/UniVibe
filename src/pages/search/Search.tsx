@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
-import { collection, query, getDocs, limit } from 'firebase/firestore';
+import { collection, query, getDocs, limit, orderBy, startAfter, documentId, type QueryDocumentSnapshot, type DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
@@ -8,13 +8,6 @@ import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
-const hasCompleteProfile = (profile: any) => {
-  if (!profile) return false;
-  if (profile.isOnboarded === true) return true;
-
-  const interestCount = Object.values(profile.interests || {}).flat().length;
-  return Boolean(profile.department && profile.year && profile.lookingFor && interestCount >= 5);
-};
 
 const Search = () => {
   const { user, userData } = useAuth();
@@ -22,36 +15,61 @@ const Search = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+    if (!user || !userData) {
+      setProfiles([]);
+      setLoading(false);
+      return;
+    }
+
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedLookingFor, setSelectedLookingFor] = useState('');
 
-  const fetchBrowsingProfiles = async () => {
-    if (!user || !userData) return;
-    setLoading(true);
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, limit(300));
-
-      const querySnapshot = await getDocs(q);
       const fetched: any[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const isExcluded =
-          doc.id === user.uid ||
-          !hasCompleteProfile(data) ||
-          !!data.isProfileLocked ||
-          !!data.isBanned ||
-          (userData.blockedUsers || []).includes(doc.id) ||
-          (data.blockedUsers || []).includes(user.uid);
+      const pageSize = 200;
+      const maxDocsToScan = 2000;
+      let lastDoc: QueryDocumentSnapshot<DocumentData> | null = null;
+      let shouldContinue = true;
 
-        if (!isExcluded) {
-          const matchResult = calculateMatchScore(userData, data);
-          fetched.push({
+      while (shouldContinue && fetched.length < maxDocsToScan) {
+        const q = lastDoc
+          ? query(usersRef, orderBy(documentId()), startAfter(lastDoc), limit(pageSize))
+          : query(usersRef, orderBy(documentId()), limit(pageSize));
+
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          break;
+        }
+
+        lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+        shouldContinue = querySnapshot.size === pageSize;
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const isExcluded =
+            !!data.isProfileLocked ||
+            !!data.isBanned ||
+            (userData.blockedUsers || []).includes(doc.id) ||
+            (data.blockedUsers || []).includes(user.uid);
+
+          if (!isExcluded) {
+            const matchResult = calculateMatchScore(userData, data);
+            fetched.push({
+              id: doc.id,
+              ...data,
+              matchScore: Number.isFinite(matchResult.score) ? matchResult.score : 0,
+            });
+          }
+        });
+      }
+    try {
             id: doc.id,
             ...data,
-            matchScore: matchResult.score,
+      fetched.sort((a, b) => {
+        const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
           });
         }
       });
@@ -78,6 +96,7 @@ const Search = () => {
         !term ||
         (p.name || '').toLowerCase().includes(term) ||
         (p.username || '').toLowerCase().includes(term) ||
+        (p.usernameLower || '').toLowerCase().includes(term) ||
         (p.department || '').toLowerCase().includes(term) ||
         (p.hometown || '').toLowerCase().includes(term) ||
         (p.currentCity || '').toLowerCase().includes(term);
@@ -86,10 +105,13 @@ const Search = () => {
       const matchesLookingFor = !selectedLookingFor || p.lookingFor === selectedLookingFor;
       const matchesDept = !selectedDept || p.department === selectedDept;
 
-      return matchesSearch && matchesYear && matchesLookingFor && matchesDept;
-    });
-  }, [profiles, searchTerm, selectedYear, selectedLookingFor, selectedDept]);
+      const isCurrentUser = p.id === user?.uid;
+      const allowSelfResult = !isCurrentUser || (term.length > 0 && matchesSearch);
 
+      return allowSelfResult && matchesSearch && matchesYear && matchesLookingFor && matchesDept;
+    });
+  }, [profiles, searchTerm, selectedYear, selectedLookingFor, selectedDept, user?.uid]);
+          Search shows all active accounts except blocked, locked, or banned profiles.
   return (
     <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">
       <div className="mb-6 flex flex-col gap-4">
