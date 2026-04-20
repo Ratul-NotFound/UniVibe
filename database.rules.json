@@ -4,16 +4,22 @@
     ".write": false,
     "chats": {
       "$chatId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
+        ".read": "auth != null && data.child('members').child(auth.uid).val() === true",
+        ".write": "auth != null && ((!data.exists() && newData.child('members').child(auth.uid).val() === true) || data.child('members').child(auth.uid).val() === true)",
+        "members": {
+          "$uid": {
+            ".read": "auth != null && data.parent().child('members').child(auth.uid).val() === true",
+            ".write": "auth != null && data.parent().child('members').child(auth.uid).val() === true"
+          }
+        },
         "messages": {
           "$msgId": {
-            ".validate": "newData.hasChildren(['senderId', 'content', 'type', 'timestamp'])"
+            ".validate": "newData.hasChildren(['senderId', 'content', 'type', 'timestamp']) && newData.child('senderId').val() === auth.uid"
           }
         },
         "typing": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && auth.uid === $uid && root.child('chats').child($chatId).child('members').child(auth.uid).val() === true"
           }
         }
       }

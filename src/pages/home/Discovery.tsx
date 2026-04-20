@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Heart, X, Star, RotateCcw, Bell, User as UserIcon } from 'lucide-react';
+import { Heart, X, Star, RotateCcw, Bell, User as UserIcon, Brain, Flame, Compass, BookHeart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDiscovery } from '@/hooks/useDiscovery';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -19,6 +19,20 @@ const Discovery = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [mood, setMood] = useState<'all' | 'study' | 'chill' | 'explore' | 'deep'>('all');
+  const [puzzleRevealed, setPuzzleRevealed] = useState(false);
+  const [battleVote, setBattleVote] = useState<'left' | 'right' | null>(null);
+  const [completedMissions, setCompletedMissions] = useState<number[]>([]);
+
+  const dayKey = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  React.useEffect(() => {
+    const storedMissions = localStorage.getItem(`missions:${dayKey}:${user?.uid || 'anon'}`);
+    setCompletedMissions(storedMissions ? JSON.parse(storedMissions) : []);
+
+    const storedBattle = localStorage.getItem(`battle:${dayKey}:${user?.uid || 'anon'}`) as 'left' | 'right' | null;
+    setBattleVote(storedBattle || null);
+  }, [dayKey, user?.uid]);
 
   React.useEffect(() => {
     if (!loading) {
@@ -37,16 +51,73 @@ const Discovery = () => {
   const likeOpacity = useTransform(x, [50, 150], [0, 1]);
   const nopeOpacity = useTransform(x, [-50, -150], [0, 1]);
 
-  const currentProfile = profiles[currentIndex];
+  const moodProfiles = React.useMemo(() => {
+    if (mood === 'all') return profiles;
+
+    return profiles.filter((profile) => {
+      const interests = Object.values(profile.interests || {}).flat().join(' ').toLowerCase();
+      const lookingFor = String(profile.lookingFor || '').toLowerCase();
+
+      if (mood === 'study') {
+        return lookingFor === 'study' || interests.includes('coding') || interests.includes('reading');
+      }
+      if (mood === 'chill') {
+        return lookingFor === 'friendship' || interests.includes('music') || interests.includes('coffee');
+      }
+      if (mood === 'explore') {
+        return lookingFor === 'networking' || interests.includes('travel') || interests.includes('adventurous');
+      }
+      return lookingFor === 'relationship' || interests.includes('empathetic') || interests.includes('serious');
+    });
+  }, [profiles, mood]);
+
+  React.useEffect(() => {
+    setCurrentIndex(0);
+    setPuzzleRevealed(false);
+  }, [mood, profiles.length]);
+
+  const currentProfile = moodProfiles[currentIndex];
+
+  const dailyMissions = React.useMemo(
+    () => [
+      `Connect with someone from ${userData?.department || 'a different'} department.`,
+      'Find a person whose interests match at least 50%.',
+      'Send one request in a new vibe mode today.',
+    ],
+    [userData?.department]
+  );
+
+  const battle = React.useMemo(
+    () => ({
+      title: 'Campus Battle',
+      left: 'Tea Person',
+      right: 'Coffee Person',
+    }),
+    []
+  );
 
   const handleNotificationClick = async () => {
     setIsNotificationsOpen(true);
-    markAllAsRead();
+    await markAllAsRead();
 
     if (permission === 'granted') return;
 
     const status = await enableNotifications();
     if (status === 'granted') toast.success('Notifications enabled!');
+  };
+
+  const toggleMission = (index: number) => {
+    const next = completedMissions.includes(index)
+      ? completedMissions.filter((id) => id !== index)
+      : [...completedMissions, index];
+
+    setCompletedMissions(next);
+    localStorage.setItem(`missions:${dayKey}:${user?.uid || 'anon'}`, JSON.stringify(next));
+  };
+
+  const handleBattleVote = (side: 'left' | 'right') => {
+    setBattleVote(side);
+    localStorage.setItem(`battle:${dayKey}:${user?.uid || 'anon'}`, side);
   };
 
   const renderHeader = () => (
@@ -89,10 +160,14 @@ const Discovery = () => {
 
     if (direction === 'right') {
       const result = await likeProfile(currentProfile);
-      if (result.isMatch) {
-        toast.success(`It's a match with ${currentProfile.name}!`, { icon: '🎉' });
+      if (result.requestSent) {
+        toast.success(`Request sent to ${currentProfile.name}!`, { icon: '📩' });
+      } else if (result.alreadyRequested) {
+        toast('Request already pending.', { icon: '⏳' });
+      } else if (result.incomingPending) {
+        toast('They already requested you. Accept from Matches.', { icon: '💌' });
       } else {
-        toast.success(`Liked ${currentProfile.name}!`, { icon: '❤️' });
+        toast.success(`Connection interest saved for ${currentProfile.name}.`, { icon: '❤️' });
       }
     } else {
       await passProfile(currentProfile);
@@ -134,7 +209,7 @@ const Discovery = () => {
     );
   }
 
-  if (currentIndex >= profiles.length) {
+  if (currentIndex >= moodProfiles.length) {
     return (
       <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
         {renderHeader()}
@@ -143,7 +218,7 @@ const Discovery = () => {
             <RotateCcw className="h-10 w-10 text-zinc-400" />
           </div>
           <h2 className="text-2xl font-black italic text-zinc-400">That's everyone for now!</h2>
-          <p className="mt-2 text-zinc-500">Check back later or change your filters to see more people.</p>
+          <p className="mt-2 text-zinc-500">Check back later or switch your mood to see more people.</p>
           <Button
             onClick={async () => {
               await refresh();
@@ -164,6 +239,68 @@ const Discovery = () => {
       {renderHeader()}
 
       <div className="relative flex flex-1 flex-col items-center justify-center p-4">
+        <div className="mb-4 grid w-full max-w-6xl gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-2 flex items-center gap-2 text-sm font-black"><BookHeart size={16} /> Daily Missions</div>
+            <div className="space-y-2">
+              {dailyMissions.map((mission, i) => (
+                <button
+                  key={mission}
+                  onClick={() => toggleMission(i)}
+                  className={`w-full rounded-lg px-2 py-2 text-left text-xs ${completedMissions.includes(i) ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}
+                >
+                  {completedMissions.includes(i) ? '✓ ' : ''}{mission}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Brain size={16} /> Compatibility Puzzle</div>
+            {currentProfile ? (
+              <>
+                <p className="text-xs text-zinc-500">Clues: {currentProfile.department || 'Dept'} · {currentProfile.year || 'Year'} · {currentProfile.lookingFor || 'Vibe'} </p>
+                {puzzleRevealed ? (
+                  <p className="mt-2 text-xs font-semibold text-primary">Reveal: {currentProfile.name}</p>
+                ) : (
+                  <Button size="sm" className="mt-2" onClick={() => setPuzzleRevealed(true)}>Reveal Profile</Button>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-zinc-500">No profile in current mood.</p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Flame size={16} /> {battle.title}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => handleBattleVote('left')} className={`rounded-lg px-2 py-2 text-xs font-bold ${battleVote === 'left' ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{battle.left}</button>
+              <button onClick={() => handleBattleVote('right')} className={`rounded-lg px-2 py-2 text-xs font-bold ${battleVote === 'right' ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{battle.right}</button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-2 flex items-center gap-2 text-sm font-black"><Compass size={16} /> Mood Discovery</div>
+            <div className="grid grid-cols-3 gap-2 text-[11px]">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'study', label: 'Study' },
+                { id: 'chill', label: 'Chill' },
+                { id: 'explore', label: 'Explore' },
+                { id: 'deep', label: 'Deep Talk' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setMood(item.id as typeof mood)}
+                  className={`rounded-lg px-2 py-1.5 font-bold ${mood === item.id ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="relative h-[550px] w-full max-w-[400px] lg:h-[620px] lg:max-w-[460px]">
           <AnimatePresence>
             <motion.div
@@ -223,18 +360,24 @@ const Discovery = () => {
             <>
               <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                 {notifications.map((item) => (
-                  <div
+                  <button
                     key={item.id}
+                    onClick={() => {
+                      if (item.link) {
+                        navigate(item.link);
+                        setIsNotificationsOpen(false);
+                      }
+                    }}
                     className={`rounded-xl border p-3 ${
                       item.isRead
                         ? 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60'
                         : 'border-pink-200 bg-pink-50 dark:border-pink-900/60 dark:bg-pink-950/30'
-                    }`}
+                    } ${item.link ? 'w-full text-left hover:border-primary/40' : 'w-full text-left'}`}
                   >
                     <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
                     <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{item.body}</p>
                     <p className="mt-2 text-[11px] text-zinc-400">{new Date(item.receivedAt).toLocaleString()}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
               <div className="flex justify-end">

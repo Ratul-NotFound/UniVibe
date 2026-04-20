@@ -8,7 +8,7 @@ interface ProfileGridProps {
 
 const ProfileGrid: React.FC<ProfileGridProps> = ({ profiles, onProfileClick }) => {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {profiles.map((profile, index) => (
         (() => {
           const displayName = profile.name || profile.username || 'Student';

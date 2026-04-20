@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, limit, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
+import { createAppNotification } from '@/lib/notifications';
 
 type DiscoveryProfile = {
   id: string;
@@ -24,8 +25,7 @@ export const useDiscovery = () => {
   const [error, setError] = useState<string | null>(null);
 
   const getSwipeDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
-  const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
-  const getChatId = (uidA: string, uidB: string) => `chat_${[uidA, uidB].sort().join('_')}`;
+  const getRequestDocId = (fromUid: string, toUid: string) => `${fromUid}_${toUid}`;
 
   const hasCompleteProfile = (profile: DiscoveryProfile) => {
     if (!profile) return false;
@@ -50,37 +50,8 @@ export const useDiscovery = () => {
     }
   };
 
-  const createMutualMatchIfNeeded = async (targetProfile: DiscoveryProfile) => {
-    if (!user || !userData) return false;
-
-    const reciprocalSwipeRef = doc(db, 'swipes', getSwipeDocId(targetProfile.id, user.uid));
-    const reciprocalSwipeSnap = await getDoc(reciprocalSwipeRef);
-
-    if (!reciprocalSwipeSnap.exists() || reciprocalSwipeSnap.data().direction !== 'like') {
-      return false;
-    }
-
-    const matchDocId = getMatchDocId(user.uid, targetProfile.id);
-    const chatId = getChatId(user.uid, targetProfile.id);
-    const matchResult = calculateMatchScore(userData, targetProfile);
-
-    await setDoc(
-      doc(db, 'matches', matchDocId),
-      {
-        users: [user.uid, targetProfile.id],
-        matchScore: matchResult.score,
-        commonInterests: matchResult.commonInterests.slice(0, 8),
-        chatId,
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    return true;
-  };
-
   const registerSwipe = async (targetProfile: DiscoveryProfile, direction: 'like' | 'pass') => {
-    if (!user) return { isMatch: false };
+    if (!user) return { isMatch: false, requestSent: false };
 
     await setDoc(
       doc(db, 'swipes', getSwipeDocId(user.uid, targetProfile.id)),
@@ -94,11 +65,52 @@ export const useDiscovery = () => {
     );
 
     if (direction !== 'like') {
-      return { isMatch: false };
+      return { isMatch: false, requestSent: false };
     }
 
-    const isMatch = await createMutualMatchIfNeeded(targetProfile);
-    return { isMatch };
+    const outgoingRequestRef = doc(db, 'requests', getRequestDocId(user.uid, targetProfile.id));
+    const incomingRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
+
+    const [outgoingSnap, incomingSnap] = await Promise.all([
+      getDoc(outgoingRequestRef),
+      getDoc(incomingRequestRef),
+    ]);
+
+    if (outgoingSnap.exists() && outgoingSnap.data()?.status === 'pending') {
+      return { isMatch: false, requestSent: false, alreadyRequested: true };
+    }
+
+    if (incomingSnap.exists() && incomingSnap.data()?.status === 'pending') {
+      return { isMatch: false, requestSent: false, incomingPending: true };
+    }
+
+    await setDoc(
+      outgoingRequestRef,
+      {
+        fromUid: user.uid,
+        toUid: targetProfile.id,
+        status: 'pending',
+        fromName: userData?.name || user.displayName || 'Someone',
+        fromPhotoURL: userData?.photoURL || user.photoURL || null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await createAppNotification({
+      toUid: targetProfile.id,
+      fromUid: user.uid,
+      type: 'request',
+      title: 'New connection request',
+      body: `${userData?.name || 'A student'} sent you a request.`,
+      link: '/matches',
+      metadata: {
+        fromUid: user.uid,
+      },
+    });
+
+    return { isMatch: false, requestSent: true };
   };
 
   const fetchProfiles = async (hasRetried = false) => {

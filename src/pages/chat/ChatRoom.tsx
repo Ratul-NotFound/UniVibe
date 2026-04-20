@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref, set } from 'firebase/database';
+import { db, rtdb } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
 import { ChevronLeft, Send, Image, MoreVertical, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { createAppNotification } from '@/lib/notifications';
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -15,6 +17,7 @@ const ChatRoom = () => {
   
   const [inputText, setInputText] = useState('');
   const [recipient, setRecipient] = useState<any>(null);
+  const [canAccess, setCanAccess] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,18 +35,32 @@ const ChatRoom = () => {
 
         const matchSnapshot = await getDocs(q);
 
-        if (matchSnapshot.empty) return;
+        if (matchSnapshot.empty) {
+          setCanAccess(false);
+          return;
+        }
 
         const matchData = matchSnapshot.docs[0].data();
         const recipientId = (matchData.users || []).find((id: string) => id !== user.uid);
-        if (!recipientId) return;
+        if (!recipientId) {
+          setCanAccess(false);
+          return;
+        }
 
         const recipientDoc = await getDoc(doc(db, 'users', recipientId));
         if (recipientDoc.exists()) {
+          await Promise.all([
+            set(ref(rtdb, `chats/${chatId}/members/${recipientId}`), true),
+            set(ref(rtdb, `chats/${chatId}/members/${user.uid}`), true),
+          ]);
           setRecipient({ id: recipientDoc.id, ...recipientDoc.data() });
+          setCanAccess(true);
+        } else {
+          setCanAccess(false);
         }
       } catch (err) {
         console.error('Failed to load chat recipient:', err);
+        setCanAccess(false);
       }
     };
 
@@ -59,7 +76,21 @@ const ChatRoom = () => {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    sendMessage(inputText);
+    const content = inputText;
+    sendMessage(content);
+
+    if (recipient?.id && user?.uid) {
+      createAppNotification({
+        toUid: recipient.id,
+        fromUid: user.uid,
+        type: 'message',
+        title: 'New message',
+        body: `${user.displayName || 'Someone'}: ${content.slice(0, 80)}`,
+        link: `/chat/${chatId}`,
+        metadata: { chatId },
+      }).catch((err) => console.error('Failed to create message notification', err));
+    }
+
     setInputText('');
     setTyping(false);
   };
@@ -74,6 +105,20 @@ const ChatRoom = () => {
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>
   );
+
+  if (canAccess === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-6 text-center dark:bg-zinc-950">
+        <div>
+          <h2 className="text-xl font-black">Chat unavailable</h2>
+          <p className="mt-2 text-sm text-zinc-500">You can message only after a request is accepted.</p>
+          <button onClick={() => navigate('/matches')} className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white">
+            Go to Matches
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
