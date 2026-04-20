@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
@@ -31,12 +31,7 @@ const Search = () => {
     setLoading(true);
     try {
       const usersRef = collection(db, 'users');
-      const constraints = [where('isOnboarded', '==', true)];
-      if (selectedDept) {
-        constraints.push(where('department', '==', selectedDept));
-      }
-
-      const q = query(usersRef, ...constraints);
+      const q = query(usersRef, limit(300));
 
       const querySnapshot = await getDocs(q);
       const fetched: any[] = [];
@@ -73,7 +68,7 @@ const Search = () => {
 
   useEffect(() => {
     fetchBrowsingProfiles();
-  }, [user, userData, selectedDept]);
+  }, [user, userData]);
 
   const filteredProfiles = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -89,10 +84,11 @@ const Search = () => {
 
       const matchesYear = !selectedYear || p.year === selectedYear;
       const matchesLookingFor = !selectedLookingFor || p.lookingFor === selectedLookingFor;
+      const matchesDept = !selectedDept || p.department === selectedDept;
 
-      return matchesSearch && matchesYear && matchesLookingFor;
+      return matchesSearch && matchesYear && matchesLookingFor && matchesDept;
     });
-  }, [profiles, searchTerm, selectedYear, selectedLookingFor]);
+  }, [profiles, searchTerm, selectedYear, selectedLookingFor, selectedDept]);
 
   return (
     <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">

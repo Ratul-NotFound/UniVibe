@@ -131,11 +131,7 @@ export const useDiscovery = () => {
       // 2. Query Firestore for DIU students
       // Note: In production, we'd use more complex filtering and pagination.
       const usersRef = collection(db, 'users');
-      const q = query(
-        usersRef, 
-        where('isOnboarded', '==', true),
-        limit(50)
-      );
+      const q = query(usersRef, limit(300));
 
       const querySnapshot = await withTimeout(getDocs(q));
       const fetchedProfiles: DiscoveryProfile[] = [];
