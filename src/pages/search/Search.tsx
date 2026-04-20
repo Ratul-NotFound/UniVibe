@@ -8,6 +8,14 @@ import ProfileGrid from '@/components/profile/ProfileGrid';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+const hasCompleteProfile = (profile: any) => {
+  if (!profile) return false;
+  if (profile.isOnboarded === true) return true;
+
+  const interestCount = Object.values(profile.interests || {}).flat().length;
+  return Boolean(profile.department && profile.year && profile.lookingFor && interestCount >= 5);
+};
+
 const Search = () => {
   const { user, userData } = useAuth();
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -23,7 +31,7 @@ const Search = () => {
     setLoading(true);
     try {
       const usersRef = collection(db, 'users');
-      const constraints = [where('isVerified', '==', true)];
+      const constraints = [where('isOnboarded', '==', true)];
       if (selectedDept) {
         constraints.push(where('department', '==', selectedDept));
       }
@@ -37,6 +45,7 @@ const Search = () => {
         const data = doc.data();
         const isExcluded =
           doc.id === user.uid ||
+          !hasCompleteProfile(data) ||
           !!data.isProfileLocked ||
           !!data.isBanned ||
           (userData.blockedUsers || []).includes(doc.id) ||
@@ -90,7 +99,7 @@ const Search = () => {
       <div className="mb-6 flex flex-col gap-4">
         <h1 className="text-3xl font-black text-zinc-900 dark:text-white">Browse</h1>
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          Only verified profiles are shown in search results.
+          Only completed profiles are shown in search results.
         </p>
         
         <div className="flex gap-2">

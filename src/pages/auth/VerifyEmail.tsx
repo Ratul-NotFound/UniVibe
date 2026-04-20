@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendEmailVerification, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -51,6 +52,7 @@ const VerifyEmail = () => {
       await user.getIdToken(true);
 
       if (user.emailVerified) {
+        await setDoc(doc(db, 'users', user.uid), { isVerified: true }, { merge: true });
         toast.success('Email verified. Welcome!');
         navigate('/');
       } else {

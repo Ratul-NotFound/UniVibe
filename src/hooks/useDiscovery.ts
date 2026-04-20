@@ -27,6 +27,14 @@ export const useDiscovery = () => {
   const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
   const getChatId = (uidA: string, uidB: string) => `chat_${[uidA, uidB].sort().join('_')}`;
 
+  const hasCompleteProfile = (profile: DiscoveryProfile) => {
+    if (!profile) return false;
+    if (profile.isOnboarded === true) return true;
+
+    const interestCount = Object.values(profile.interests || {}).flat().length;
+    return Boolean(profile.department && profile.year && profile.lookingFor && interestCount >= 5);
+  };
+
   const withTimeout = async <T>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -125,7 +133,7 @@ export const useDiscovery = () => {
       const usersRef = collection(db, 'users');
       const q = query(
         usersRef, 
-        where('isVerified', '==', true),
+        where('isOnboarded', '==', true),
         limit(50)
       );
 
@@ -136,7 +144,7 @@ export const useDiscovery = () => {
         const data = doc.data() as DiscoveryProfile;
         const blockedCurrentUser = (data.blockedUsers || []).includes(user.uid);
 
-        if (!excludedIds.has(doc.id) && !data.isProfileLocked && !data.isBanned && !blockedCurrentUser) {
+        if (!excludedIds.has(doc.id) && hasCompleteProfile(data) && !data.isProfileLocked && !data.isBanned && !blockedCurrentUser) {
           // 3. Calculate match score
           const matchResult = calculateMatchScore(userData, data);
           fetchedProfiles.push({
