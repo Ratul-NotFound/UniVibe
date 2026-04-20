@@ -162,29 +162,29 @@ export const useMatches = () => {
       const matchDocId = getMatchDocId(fromUid, toUid);
       const chatId = getChatId(fromUid, toUid);
 
-      await setDoc(
-        doc(db, 'matches', matchDocId),
-        {
-          users: [fromUid, toUid],
-          matchScore: matchResult.score,
-          commonInterests: matchResult.commonInterests?.slice(0, 8) || [],
-          chatId,
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await updateDoc(doc(db, 'requests', requestItem.id), {
+        status: 'accepted',
+        updatedAt: serverTimestamp(),
+      });
 
       await Promise.all([
+        setDoc(
+          doc(db, 'matches', matchDocId),
+          {
+            users: [fromUid, toUid],
+            matchScore: matchResult.score,
+            commonInterests: matchResult.commonInterests?.slice(0, 8) || [],
+            chatId,
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
+        ),
         set(ref(rtdb, `chats/${chatId}`), {
           members: {
             [fromUid]: true,
             [toUid]: true,
           },
           createdAt: Date.now(),
-        }),
-        updateDoc(doc(db, 'requests', requestItem.id), {
-          status: 'accepted',
-          updatedAt: serverTimestamp(),
         }),
       ]);
 

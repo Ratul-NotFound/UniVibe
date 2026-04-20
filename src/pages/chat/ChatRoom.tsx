@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ChevronLeft, Send, Image, MoreVertical, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createAppNotification } from '@/lib/notifications';
+import { usePresenceStatus } from '@/hooks/usePresenceStatus';
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -20,6 +21,7 @@ const ChatRoom = () => {
 
   const activeChatId = canAccess ? chatId : undefined;
   const { messages, loading, sendMessage, setTyping, otherUserTyping } = useChat(activeChatId);
+  const { isOnline } = usePresenceStatus(recipient?.id);
 
   useEffect(() => {
     const fetchRecipient = async () => {
@@ -130,7 +132,7 @@ const ChatRoom = () => {
         <div className="flex-1">
           <h2 className="text-sm font-bold">{recipient?.name || 'Chat Room'}</h2>
           <p className="text-[10px] text-zinc-500">
-            {otherUserTyping ? 'typing...' : 'Online'}
+            {otherUserTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
           </p>
         </div>
         <button className="text-zinc-400">

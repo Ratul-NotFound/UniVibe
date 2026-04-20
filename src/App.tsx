@@ -18,6 +18,7 @@ import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminUsers from '@/pages/admin/Users';
 import AdminReports from '@/pages/admin/Reports';
 import AppLayout from '@/components/layout/AppLayout';
+import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 
 // Placeholder Pages
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
@@ -48,6 +49,8 @@ const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = t
 };
 
 function App() {
+  usePresenceTracker();
+
   return (
     <Router>
       <div className="min-h-screen bg-white dark:bg-zinc-950">
