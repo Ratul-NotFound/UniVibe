@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
-import { ref, set } from 'firebase/database';
-import { db, rtdb } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
 import { ChevronLeft, Send, Image, MoreVertical, Sparkles } from 'lucide-react';
@@ -13,12 +12,14 @@ const ChatRoom = () => {
   const { chatId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { messages, loading, sendMessage, setTyping, otherUserTyping } = useChat(chatId);
-  
+
   const [inputText, setInputText] = useState('');
   const [recipient, setRecipient] = useState<any>(null);
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const activeChatId = canAccess ? chatId : undefined;
+  const { messages, loading, sendMessage, setTyping, otherUserTyping } = useChat(activeChatId);
 
   useEffect(() => {
     const fetchRecipient = async () => {
@@ -49,10 +50,6 @@ const ChatRoom = () => {
 
         const recipientDoc = await getDoc(doc(db, 'users', recipientId));
         if (recipientDoc.exists()) {
-          await Promise.all([
-            set(ref(rtdb, `chats/${chatId}/members/${recipientId}`), true),
-            set(ref(rtdb, `chats/${chatId}/members/${user.uid}`), true),
-          ]);
           setRecipient({ id: recipientDoc.id, ...recipientDoc.data() });
           setCanAccess(true);
         } else {
@@ -100,7 +97,7 @@ const ChatRoom = () => {
     setTyping(e.target.value.length > 0);
   };
 
-  if (loading) return (
+  if (canAccess === null || loading) return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>

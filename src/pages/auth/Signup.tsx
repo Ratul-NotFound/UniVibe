@@ -51,6 +51,8 @@ const Signup = () => {
         role: 'user',
         isBanned: false,
         dailyRequestCount: 0,
+        vibePoints: 0,
+        uniCoins: 15,
         interests: {},
         createdAt: serverTimestamp(),
       });

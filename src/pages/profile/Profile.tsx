@@ -342,6 +342,14 @@ const Profile = () => {
             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
               <CheckCircle size={10} /> Verified Student
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
+                Vibe Points: {Number((userData as any)?.vibePoints ?? (userData as any)?.snapScore ?? 0)}
+              </div>
+              <div className="rounded-full bg-amber-500/10 px-3 py-1 text-[11px] font-black text-amber-600 dark:text-amber-400">
+                UniCoins: {Number((userData as any)?.uniCoins ?? (userData as any)?.credits ?? 0)}
+              </div>
+            </div>
           </div>
         </div>
       </div>

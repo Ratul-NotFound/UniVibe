@@ -30,6 +30,10 @@ interface UserData {
   isProfileLocked?: boolean;
   isBanned?: boolean;
   dailyRequestCount?: number;
+  vibePoints?: number;
+  snapScore?: number;
+  uniCoins?: number;
+  credits?: number;
   privacy?: {
     phone?: 'private' | 'friends' | 'public' | string;
     birthdate?: 'private' | 'public' | string;

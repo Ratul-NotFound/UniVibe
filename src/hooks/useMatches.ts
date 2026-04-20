@@ -145,8 +145,13 @@ export const useMatches = () => {
     );
 
     await Promise.all([
-      set(ref(rtdb, `chats/${chatId}/members/${fromUid}`), true),
-      set(ref(rtdb, `chats/${chatId}/members/${toUid}`), true),
+      set(ref(rtdb, `chats/${chatId}`), {
+        members: {
+          [fromUid]: true,
+          [toUid]: true,
+        },
+        createdAt: Date.now(),
+      }),
       updateDoc(doc(db, 'requests', requestItem.id), {
         status: 'accepted',
         updatedAt: serverTimestamp(),
