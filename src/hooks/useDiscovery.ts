@@ -129,13 +129,13 @@ export const useDiscovery = () => {
         ...(userData.blockedUsers || []),
       ]);
 
-      // Also exclude users the current user has already swiped on.
+      // Exclude only users already liked/requested. Passed users can reappear later.
       const swipesRef = collection(db, 'swipes');
       const swipesQ = query(swipesRef, where('fromUid', '==', user.uid), limit(300));
       const swipeSnapshot = await withTimeout(getDocs(swipesQ));
       swipeSnapshot.forEach((swipeDoc) => {
         const swipeData = swipeDoc.data();
-        if (swipeData?.toUid) {
+        if (swipeData?.toUid && swipeData?.direction === 'like') {
           excludedIds.add(swipeData.toUid);
         }
       });
