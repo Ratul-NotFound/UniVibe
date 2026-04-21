@@ -47,6 +47,21 @@
         }
       }
     },
+    "portals": {
+      "$portalId": {
+        ".read": "auth != null",
+        "presence": {
+          "$uid": {
+            ".write": "auth.uid === $uid"
+          }
+        },
+        "messages": {
+          "$msgId": {
+            ".write": "auth != null && (!data.exists() || data.child('senderId').val() === auth.uid)"
+          }
+        }
+      }
+    },
     "presence": {
       "$uid": {
         ".read": "auth != null",

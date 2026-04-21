@@ -14,11 +14,17 @@ import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import { 
   collection, query, orderBy, limit, onSnapshot, 
-  addDoc, serverTimestamp, updateDoc, doc, arrayUnion, increment, setDoc, getDocs, where
+  addDoc, serverTimestamp, updateDoc, doc, arrayUnion, increment, setDoc, getDocs, where,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useBroadcasts, SIGNAL_THEMES } from '@/hooks/useBroadcasts';
+import { SignalCard } from '@/components/broadcast/SignalCard';
+import { BroadcasterComposer } from '@/components/broadcast/BroadcasterComposer';
+import { PortalView } from '@/components/broadcast/PortalView';
+import { Modal } from '@/components/ui/Modal';
 
-type TabType = 'pulse' | 'battles' | 'quests' | 'vibe-check' | 'shop';
+type TabType = 'broadcast' | 'battles' | 'quests' | 'vibe-check' | 'shop';
 
 const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null) => {
   if (!user?.email) return false;
@@ -31,12 +37,15 @@ const Discovery = () => {
   const navigate = useNavigate();
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<TabType>('pulse');
+  const [activeTab, setActiveTab] = useState<TabType>('broadcast');
   const [isPosting, setIsPosting] = useState(false);
-  const [newPulse, setNewPulse] = useState('');
+  const [activePortalId, setActivePortalId] = useState<string | null>(null);
+  
+  // Custom Broadcast Hook
+  const { postSignal, joinSignal, igniteSignal, CAMPUS_ZONES } = useBroadcasts();
   
   // Data State
-  const [pulses, setPulses] = useState<any[]>([]);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [battles, setBattles] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
   const [vibeStats, setVibeStats] = useState<Record<string, number>>({});
@@ -51,20 +60,24 @@ const Discovery = () => {
 
     const qPulse = query(
       collection(db, 'pulses'),
-      orderBy('createdAt', 'desc'),
-      limit(20)
+      where('expiresAt', '>', Timestamp.now()),
+      orderBy('expiresAt', 'desc'),
+      limit(25)
     );
-    const qBattle = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(10));
+    
     const unsubPulse = onSnapshot(
       qPulse,
       (s) => {
-        setPulses(s.docs.map(d => ({ id: d.id, ...d.data() })));
+        const sorted = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Local priority sort
+        setBroadcasts(sorted.sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0)));
       },
       (error) => {
-        console.error('Pulse listener error:', error);
-        setPulses([]);
+        console.error('Broadcast listener error:', error);
+        setBroadcasts([]);
       }
     );
+    const qBattle = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(10));
     const unsubBattle = onSnapshot(
       qBattle,
       (s) => setBattles(s.docs.map(d => ({ id: d.id, ...d.data() }))),
@@ -111,7 +124,7 @@ const Discovery = () => {
           const defaultMissions = [
             { id: 'q1', title: 'Campus Ghost', status: 'Available', reward: 150, progress: 0, total: 1, type: 'ghost' },
             { id: 'q2', title: 'Opinion Leader', status: 'Available', reward: 200, progress: 0, total: 3, type: 'vote' },
-            { id: 'q3', title: 'Vibe Architect', status: 'Available', reward: 100, progress: 0, total: 1, type: 'pulse' }
+            { id: 'q3', title: 'Broadcast Architect', status: 'Available', reward: 100, progress: 0, total: 1, type: 'broadcast' }
           ];
           defaultMissions.forEach(m => setDoc(doc(db, 'users', user.uid, 'missions', m.id), m));
         } else {
@@ -126,24 +139,26 @@ const Discovery = () => {
     return () => unsubMissions();
   }, [user]);
 
-  const handlePostPulse = async () => {
-    if (!user || !newPulse.trim()) return;
+  // Handlers for Broadcast 3.0
+  const handlePost = async (data: any) => {
     try {
-      await addDoc(collection(db, 'pulses'), {
-        content: newPulse,
-        fromUid: user.uid,
-        fromName: userData?.name || 'DIU Student',
-        fromPhotoURL: userData?.photoURL || null,
-        createdAt: serverTimestamp()
-      });
-      await updateMissionProgress('q3'); // Vibe Architect
-      toast.success('Broadcast sent to campus!');
-      setNewPulse('');
-      setIsPosting(false);
-    } catch (error) {
-      console.error('Failed to post pulse:', error);
-      toast.error('Failed to broadcast pulse');
+      await postSignal(data);
+      toast.success('Signal Transmitted!', { icon: '📡' });
+    } catch (err) {
+      toast.error('Transmission failed');
     }
+  };
+
+  const handleJoin = async (id: string) => {
+    await joinSignal(id);
+    const signal = broadcasts.find(b => b.id === id);
+    if (signal?.isPortal) {
+      setActivePortalId(id);
+    }
+  };
+
+  const handleIgnite = async (id: string) => {
+    await igniteSignal(id);
   };
 
   const handleUpdateVibe = async (vibe: string, hasRetried = false) => {
@@ -235,7 +250,7 @@ const Discovery = () => {
 
         <div className="max-w-lg mx-auto mt-6">
           <div className="bg-zinc-900/50 p-1 rounded-2xl border border-white/[0.03] flex gap-1 overflow-x-auto no-scrollbar">
-             {(['pulse', 'battles', 'quests', 'vibe-check', 'shop'] as TabType[]).map(t => (
+             {(['broadcast', 'battles', 'quests', 'vibe-check', 'shop'] as TabType[]).map(t => (
                <button key={t} onClick={() => setActiveTab(t)} className={`flex-1 min-w-[85px] relative py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === t ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   {activeTab === t && <motion.div layoutId="tab-pill" className="absolute inset-0 bg-primary shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
                   <span className="relative z-10">{t.replace('-', ' ')}</span>
@@ -247,49 +262,40 @@ const Discovery = () => {
 
       <main className="max-w-lg mx-auto px-5 pt-8 pb-32">
         <AnimatePresence mode="wait">
-          {activeTab === 'pulse' && (
-            <motion.div key="pulse" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+          {activeTab === 'broadcast' && (
+            <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-[3rem] border border-white/[0.05] relative overflow-hidden group">
                   <div className="relative z-10">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">Broadcast Hub</h2>
-                    <p className="text-xs font-bold text-zinc-500 mb-8 uppercase tracking-widest">Alert the campus of current energy</p>
-                    {!isPosting ? (
-                      <button onClick={() => setIsPosting(true)} className="w-full h-14 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
-                        <Plus size={16} /> Update Signal
-                      </button>
-                    ) : (
-                      <div className="space-y-4 animate-in slide-in-from-top-2 duration-300 text-left">
-                        <textarea value={newPulse} onChange={e => setNewPulse(e.target.value)} placeholder="What's happening?" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-sm font-medium focus:ring-1 focus:ring-primary outline-none min-h-[100px]" />
-                        <div className="flex gap-2">
-                          <Button onClick={() => setIsPosting(false)} className="flex-1 h-12 bg-zinc-800 text-xs font-black uppercase tracking-widest rounded-xl text-white">Cancel</Button>
-                          <Button onClick={handlePostPulse} className="flex-1 h-12 bg-primary text-xs font-black uppercase tracking-widest rounded-xl text-white">Send</Button>
-                        </div>
-                      </div>
-                    )}
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">Live Campus Feed</h2>
+                    <p className="text-xs font-bold text-zinc-500 mb-8 uppercase tracking-widest leading-relaxed">Broadcast your energy to the university</p>
+                    <button onClick={() => setIsPosting(true)} className="w-full h-14 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
+                      <Zap size={16} className="fill-black" /> Transmit Signal
+                    </button>
                   </div>
                   <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/20 rounded-full blur-[100px] pointer-events-none group-hover:bg-primary/30 transition-all duration-700" />
                </div>
+
                <div className="space-y-4">
-                  {pulses.map((p, i) => (
-                    <div key={i} className="bg-zinc-900/40 border border-white/[0.02] p-6 rounded-[2.5rem] flex gap-4 backdrop-blur-3xl">
-                       <div className="h-10 w-10 overflow-hidden rounded-full bg-zinc-800 border border-white/5">
-                          {p.fromPhotoURL ? (
-                            <img src={p.fromPhotoURL} alt={p.fromName} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center font-black italic text-primary text-xs">{p.fromName?.[0]}</div>
-                          )}
+                  {broadcasts.length > 0 ? (
+                    broadcasts.map((p) => (
+                      <SignalCard 
+                        key={p.id}
+                        signal={p}
+                        currentUser={user}
+                        onJoin={handleJoin}
+                        onOpenPortal={(id) => setActivePortalId(id)}
+                        onIgnite={handleIgnite}
+                      />
+                    ))
+                  ) : (
+                    <div className="py-20 text-center">
+                       <div className="mb-6 h-20 w-20 mx-auto bg-zinc-900/50 rounded-full flex items-center justify-center text-zinc-700">
+                          <Radio size={40} />
                        </div>
-                       <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                             <span className="text-[11px] font-black text-primary uppercase tracking-widest">{p.fromName}</span>
-                             <span className="text-[9px] font-bold text-zinc-600 uppercase">
-                               {p.createdAt?.toMillis ? new Date(p.createdAt.toMillis()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                             </span>
-                          </div>
-                          <p className="text-sm text-zinc-300 font-medium leading-relaxed italic opacity-80">"{p.content}"</p>
-                       </div>
+                       <h3 className="text-lg font-black text-zinc-500 uppercase tracking-tighter">Campus is Quiet</h3>
+                       <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-2">Be the first to break the silence</p>
                     </div>
-                  ))}
+                  )}
                </div>
             </motion.div>
           )}
@@ -420,7 +426,7 @@ const Discovery = () => {
                  { title: 'Super Ghost', price: 500, desc: 'Hide from all radar', icon: GhostIcon, color: 'text-zinc-600' },
                  { title: 'Golden Crown', price: 1000, desc: 'Identity badge', icon: Crown, color: 'text-yellow-400' },
                  { title: 'Global Map', price: 250, desc: 'See activity heatmap', icon: Map, color: 'text-emerald-400' },
-                 { title: 'Pulse Boost', price: 100, desc: 'Pin your broadcast', icon: Zap, color: 'text-primary' },
+                 { title: 'Broadcast Boost', price: 100, desc: 'Pin your broadcast signal', icon: Zap, color: 'text-primary' },
                ].map((item, i) => (
                  <div key={i} className="bg-zinc-900 border border-white/[0.05] p-8 rounded-[3rem] flex items-center justify-between group">
                     <div className="flex items-center gap-6">
@@ -450,6 +456,34 @@ const Discovery = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Modals for Hub 3.0 */}
+        <Modal 
+          isOpen={isPosting} 
+          onClose={() => setIsPosting(false)}
+          title="Create Signal"
+          maxWidthClass="max-w-xl"
+        >
+          <BroadcasterComposer 
+            onClose={() => setIsPosting(false)} 
+            onPost={handlePost} 
+          />
+        </Modal>
+
+        <Modal 
+          isOpen={!!activePortalId} 
+          onClose={() => setActivePortalId(null)}
+          title="Vibe Portal"
+          maxWidthClass="max-w-md"
+        >
+          {activePortalId && (
+            <PortalView 
+              portalId={activePortalId} 
+              signal={broadcasts.find(b => b.id === activePortalId)}
+              onClose={() => setActivePortalId(null)}
+            />
+          )}
+        </Modal>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 bg-[#020202]/95 backdrop-blur-3xl border-t border-white/[0.03] flex items-center justify-around px-8">
