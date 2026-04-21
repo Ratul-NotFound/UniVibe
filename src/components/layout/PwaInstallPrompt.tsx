@@ -56,6 +56,11 @@ const PwaInstallPrompt: React.FC = () => {
       return;
     }
 
+    // Check for global prompt captured in index.html
+    if (window.deferredPwaPrompt) {
+      setDeferredPrompt(window.deferredPwaPrompt);
+    }
+
     const dismissedAt = Number(localStorage.getItem(DISMISSED_AT_KEY) || 0);
     const canRemind = dismissedAt === 0 || Date.now() - dismissedAt > REMIND_AFTER_MS;
     setCanShowPrompt(canRemind);
@@ -65,10 +70,17 @@ const PwaInstallPrompt: React.FC = () => {
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
 
+    const onPromptReady = () => {
+      if (window.deferredPwaPrompt) {
+        setDeferredPrompt(window.deferredPwaPrompt);
+      }
+    };
+
     const onInstalled = () => {
       localStorage.setItem(INSTALLED_KEY, 'true');
       setIsInstalled(true);
       setDeferredPrompt(null);
+      window.deferredPwaPrompt = null;
     };
 
     const onForceShow = () => {
@@ -81,11 +93,13 @@ const PwaInstallPrompt: React.FC = () => {
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('pwa:prompt-ready', onPromptReady);
     window.addEventListener('appinstalled', onInstalled);
     window.addEventListener(FORCE_SHOW_EVENT, onForceShow);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('pwa:prompt-ready', onPromptReady);
       window.removeEventListener('appinstalled', onInstalled);
       window.removeEventListener(FORCE_SHOW_EVENT, onForceShow);
     };
@@ -97,14 +111,16 @@ const PwaInstallPrompt: React.FC = () => {
   };
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    const prompt = deferredPrompt || window.deferredPwaPrompt;
+    if (!prompt) return;
 
-    await deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
+    await prompt.prompt();
+    const result = await prompt.userChoice;
 
     if (result.outcome === 'accepted') {
       localStorage.setItem(INSTALLED_KEY, 'true');
       setIsInstalled(true);
+      window.deferredPwaPrompt = null;
     } else {
       dismissPrompt();
     }

@@ -279,7 +279,7 @@ const Discovery = () => {
         </div>
 
         <div className="max-w-lg mx-auto mt-6 px-2">
-          <div className="bg-white/[0.02] backdrop-blur-2xl p-1.5 rounded-[2rem] border border-white/[0.05] flex gap-1 overflow-x-auto no-scrollbar shadow-2xl">
+          <div className="bg-zinc-900/40 p-1.5 rounded-2xl border border-white/[0.05] flex gap-1 overflow-x-auto no-scrollbar shadow-xl">
              {[
                { id: 'broadcast', label: 'Feed', icon: Radio },
                { id: 'battles', label: 'Arena', icon: Zap },
@@ -293,17 +293,17 @@ const Discovery = () => {
                  <button 
                    key={t.id} 
                    onClick={() => setActiveTab(t.id as TabType)} 
-                   className={`flex-1 min-w-[70px] relative py-3 rounded-2xl flex flex-col items-center gap-1.5 transition-all duration-500 ${isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                   className={`flex-1 min-w-[70px] relative py-3 rounded-xl flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                  >
                     {isActive && (
                       <motion.div 
                         layoutId="active-nav-pill" 
-                        className="absolute inset-0 bg-primary/20 border border-primary/30 rounded-2xl shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)]" 
-                        transition={{ type: "spring", bounce: 0.25, duration: 0.6 }} 
+                        className="absolute inset-0 bg-white shadow-xl rounded-xl" 
+                        transition={{ duration: 0.3 }} 
                       />
                     )}
-                    <Icon size={14} className={`relative z-10 ${isActive ? 'text-primary' : 'text-zinc-500'}`} />
-                    <span className="relative z-10 text-[8px] font-black uppercase tracking-[0.2em]">{t.label}</span>
+                    <Icon size={14} className={`relative z-10 transition-colors ${isActive ? 'text-black' : 'text-zinc-500'}`} />
+                    <span className={`relative z-10 text-[8px] font-black uppercase tracking-[0.1em] transition-colors ${isActive ? 'text-black' : 'text-zinc-500'}`}>{t.label}</span>
                  </button>
                );
              })}
@@ -401,54 +401,43 @@ const Discovery = () => {
 
           {activeTab === 'quests' && (
             <motion.div key="quests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10 pb-10">
-               {/* Midnight Arcanum Mastery Header */}
-               <div className="relative group p-[1px] rounded-[4.5rem] overflow-hidden bg-gradient-to-br from-white/10 to-transparent shadow-2xl">
-                  <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors duration-700" />
-                  
-                  {/* Neon Orbit Glow */}
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-pulse pointer-events-none" />
-
-                  <div className="bg-zinc-950/40 backdrop-blur-3xl p-14 rounded-[4.4rem] relative overflow-hidden border border-white/5">
-                     {/* Background Geometry */}
-                     <div className="absolute right-10 top-1/2 -translate-y-1/2 text-white/[0.03] group-hover:text-white/[0.05] transition-all duration-1000 group-hover:scale-125 group-hover:-rotate-12 translate-x-10 pointer-events-none">
-                        <Crown size={280} strokeWidth={0.5} />
+               {/* Editorial Noir Mastery Header */}
+               <div className="relative bg-zinc-900 rounded-[2rem] p-12 border border-white/[0.05] overflow-hidden group">
+                  <div className="relative z-10 flex flex-col items-center text-center">
+                     <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500 mb-6 font-mono">
+                        System Efficiency
+                     </p>
+                     
+                     <div className="relative mb-8">
+                        <h2 className="text-9xl font-black uppercase tracking-tighter leading-none text-white italic">
+                           <span className="text-zinc-700 font-mono text-3xl align-middle mr-4 not-italic tracking-normal">LVL</span>
+                           {Math.floor(vibePoints / 1000) + 1}
+                        </h2>
                      </div>
 
-                     <div className="relative z-10 flex flex-col items-center text-center">
-                        <div className="flex items-center gap-4 mb-6">
-                           <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-primary" />
-                           <p className="text-[11px] font-black uppercase tracking-[0.6em] text-primary drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]">
-                              System Rank
-                           </p>
-                           <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-primary" />
+                     <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+                        <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden border border-white/[0.03]">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${(vibePoints % 1000) / 10}%` }}
+                             className="h-full bg-white transition-all duration-1000"
+                          />
                         </div>
-                        
-                        <div className="relative mb-6">
-                           <h2 className="text-9xl font-black italic uppercase tracking-tighter leading-none text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                              <span className="text-zinc-600 font-mono text-4xl align-middle mr-2 not-italic tracking-normal">LVL</span>
-                              {Math.floor(vibePoints / 1000) + 1}
-                           </h2>
-                        </div>
-
-                        <div className="flex flex-col items-center gap-4 w-full max-w-xs">
-                           <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(vibePoints % 1000) / 10}%` }}
-                                className="h-full bg-gradient-to-r from-primary to-blue-500 shadow-[0_0_15px_rgba(var(--primary-rgb),0.6)]"
-                             />
-                           </div>
-                           <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                              <span className="text-white">{vibePoints % 1000}</span>
-                              <span className="opacity-30">/</span>
-                              <span>1000 VP TO NEXUS</span>
-                           </div>
+                        <div className="flex items-center gap-2 font-mono text-[9px] font-bold text-zinc-500 uppercase tracking-[0.3em]">
+                           <span className="text-white">{vibePoints % 1000}</span>
+                           <span className="opacity-30">/</span>
+                           <span>1000 VP UNLOCK</span>
                         </div>
                      </div>
                   </div>
+                  
+                  {/* Subtle Geometric Decor */}
+                  <div className="absolute top-0 right-0 p-8 text-white opacity-[0.02] pointer-events-none group-hover:opacity-[0.05] transition-opacity">
+                     <Crown size={120} strokeWidth={1} />
+                  </div>
                </div>
 
-               <div className="space-y-6">
+               <div className="space-y-2">
                   {missions.map(m => (
                     <QuestCard key={m.id} mission={m} onAccept={acceptMission} />
                   ))}

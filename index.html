@@ -4,7 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#020202" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <title>univibe</title>
+    <script>
+      window.deferredPwaPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPwaPrompt = e;
+        // Notify the app that the prompt is available
+        window.dispatchEvent(new CustomEvent('pwa:prompt-ready'));
+      });
+      window.addEventListener('appinstalled', () => {
+        window.deferredPwaPrompt = null;
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

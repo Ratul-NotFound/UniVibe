@@ -4,14 +4,12 @@ import { collection, doc, getDoc, getDocs, limit, query, where, onSnapshot } fro
 import { db } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
-import { ChevronLeft, Send, Image, MoreVertical, Sparkles, User } from 'lucide-react';
+import { ChevronLeft, Send, Image, MoreVertical, Sparkles, User, Radio, Trash2, Smile } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { createAppNotification } from '@/lib/notifications';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
 import { Modal } from '@/components/ui/Modal';
 import ProfileCard from '@/components/profile/ProfileCard';
-import MatchScoreBadge from '@/components/profile/MatchScoreBadge';
-import { Heart, Trash2, Smile } from 'lucide-react';
 
 const ChatRoom = () => {
   const { chatId } = useParams();
@@ -27,7 +25,6 @@ const ChatRoom = () => {
   const activeChatId = canAccess ? chatId : undefined;
   const { messages, loading, sendMessage, setTyping, otherUserTyping, reactToMessage, deleteMessage, markAsRead } = useChat(activeChatId);
   const { isOnline } = usePresenceStatus(recipient?.id);
-  const [matchScore, setMatchScore] = useState<number | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [lastTap, setLastTap] = useState(0);
@@ -54,7 +51,6 @@ const ChatRoom = () => {
         }
 
         const matchData = matchSnapshot.docs[0].data();
-        setMatchScore(matchData.matchScore || 0);
         const recipientId = (matchData.users || []).find((id: string) => id !== user.uid);
         
         if (!recipientId) {
@@ -62,7 +58,6 @@ const ChatRoom = () => {
           return;
         }
 
-        // Real-time Recipient Sync
         unsubRecipient = onSnapshot(doc(db, 'users', recipientId), (d) => {
           if (d.exists()) {
             setRecipient({ id: d.id, ...d.data() });
@@ -89,7 +84,6 @@ const ChatRoom = () => {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
 
-    // Mark unread messages as read
     if (user && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.senderId !== user.uid && !lastMessage.readBy?.[user.uid]) {
@@ -126,19 +120,19 @@ const ChatRoom = () => {
   };
 
   if (canAccess === null || loading) return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    <div className="flex min-h-screen items-center justify-center bg-[#020202]">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
     </div>
   );
 
   if (canAccess === false) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-6 text-center dark:bg-zinc-950">
+      <div className="flex min-h-screen items-center justify-center bg-[#020202] p-8 text-center">
         <div>
-          <h2 className="text-xl font-black">Chat unavailable</h2>
-          <p className="mt-2 text-sm text-zinc-500">You can message only after a request is accepted.</p>
-          <button onClick={() => navigate('/matches')} className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white">
-            Go to Matches
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter">Restriction Enforced</h2>
+          <p className="mt-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest max-w-[200px] mx-auto">Access to this frequency is prohibited until connection is established.</p>
+          <button onClick={() => navigate('/matches')} className="mt-8 rounded-xl bg-white px-8 py-3 text-[10px] font-black uppercase tracking-widest text-black">
+            My Connections
           </button>
         </div>
       </div>
@@ -146,49 +140,60 @@ const ChatRoom = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-      {/* Top Bar */}
-      <div className="flex items-center gap-3 border-b border-zinc-100 bg-white/80 px-4 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/80">
-        <button onClick={() => navigate(-1)} className="text-zinc-500">
+    <div className="flex h-screen flex-col bg-[#020202] text-white overflow-hidden">
+      {/* Editorial Noir Top Bar */}
+      <div className="flex items-center gap-4 border-b border-white/[0.03] bg-[#020202] px-6 py-5">
+        <button onClick={() => navigate(-1)} className="text-zinc-500 hover:text-white transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <button 
-          onClick={() => setIsProfileOpen(true)}
-          className="h-10 w-10 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800 ring-2 ring-transparent transition-all hover:ring-primary/20"
-        >
-          {recipient?.photoURL && <img src={recipient.photoURL} className="h-full w-full object-cover" />}
-        </button>
-        <div className="flex-1">
-          <h2 className="text-sm font-black text-zinc-900 dark:text-white line-clamp-1">
-            {recipient?.name || 'Chat Room'}
-          </h2>
-          <p className="text-[10px] font-bold text-emerald-500">
-            {otherUserTyping ? 'typing...' : isOnline ? 'Online now' : 'Active lately'}
-          </p>
-        </div>
         
-        {matchScore !== null && (
-          <div className="scale-50 -mr-4">
-            <MatchScoreBadge score={matchScore} />
+        <div 
+          onClick={() => setIsProfileOpen(true)}
+          className="h-12 w-12 cursor-pointer overflow-hidden rounded-[1.2rem] bg-zinc-800 border border-white/5"
+        >
+          {recipient?.photoURL ? (
+             <img src={recipient.photoURL} className="h-full w-full object-cover grayscale brightness-75 transition-all hover:grayscale-0 hover:brightness-100" />
+          ) : (
+             <div className="flex h-full w-full items-center justify-center text-zinc-700">
+                <User size={20} />
+             </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-black text-white italic uppercase tracking-tighter truncate leading-none mb-1">
+            {recipient?.name || 'CLEARANCE ACCESS'}
+          </h2>
+          <div className="flex items-center gap-2">
+             <div className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-white shadow-[0_0_10px_white]' : 'bg-zinc-800'}`} />
+             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 font-mono">
+                {otherUserTyping ? 'SIGNAL INCOMING...' : isOnline ? 'ACTIVE FREQUENCY' : 'IDLE LINK'}
+             </p>
           </div>
+        </div>
+
+        {recipient?.currentVibe && (
+           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-white/5 rounded-lg">
+              <Radio size={12} className="text-primary animate-pulse" />
+              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">{recipient.currentVibe}</span>
+           </div>
         )}
 
         <button 
-          onClick={() => navigate(-1)} 
-          className="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-zinc-50 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+          className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 text-zinc-500 hover:text-white transition-colors"
         >
           <MoreVertical size={18} />
         </button>
       </div>
 
-      {/* Messages Area */}
+      {/* Messaging Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
+        className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
       >
-        <div className="flex justify-center py-8">
-          <div className="rounded-full bg-zinc-100 px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:bg-zinc-900">
-            Messages are encrypted
+        <div className="flex justify-center py-10 opacity-30">
+          <div className="rounded-lg border border-white/10 px-4 py-2 text-[8px] font-black uppercase tracking-[0.4em] text-zinc-500">
+             End-to-End Encrypted Access
           </div>
         </div>
 
@@ -197,8 +202,6 @@ const ChatRoom = () => {
           const isLastMessage = index === messages.length - 1;
           const isRead = msg.readBy && Object.keys(msg.readBy).some(uid => uid !== user?.uid);
           const reactions = msg.reactions ? Object.entries(msg.reactions) : [];
-          
-          // Check if next message is from the same sender to handle avatar/rounding
           const nextMsg = messages[index + 1];
           const isLastInBlock = !nextMsg || nextMsg.senderId !== msg.senderId;
 
@@ -211,29 +214,12 @@ const ChatRoom = () => {
           };
 
           return (
-            <div key={msg.id} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-              {!isOwn && (
-                <div className="w-8 flex-shrink-0">
-                  {isLastInBlock ? (
-                    <div 
-                      onClick={() => setIsProfileOpen(true)}
-                      className="h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
-                    >
-                      {recipient?.photoURL ? (
-                        <img src={recipient.photoURL} alt={recipient.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-zinc-400">
-                          <User size={14} />
-                        </div>
-                      )}
-                    </div>
-                  ) : <div className="h-8 w-8" />}
-                </div>
-              )}
-
-              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                <div
-                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+            <div key={msg.id} className={`flex items-end gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative group"
                   onContextMenu={(e) => {
                     e.preventDefault();
                     if (isOwn) {
@@ -243,41 +229,30 @@ const ChatRoom = () => {
                   }}
                   onClick={() => handleDoubleTap(msg.id)}
                 >
-                  <motion.div
-                    initial={{ opacity: 0, scale: 1 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative group"
+                  <div
+                    className={`relative px-5 py-3 text-sm font-medium leading-relaxed tracking-tight transition-all active:scale-[0.98] ${
+                      isOwn 
+                        ? 'bg-zinc-900 border border-white/5 text-white rounded-[1.2rem] rounded-br-none' 
+                        : 'bg-white text-black rounded-[1.2rem] rounded-bl-none'
+                    }`}
                   >
-                    <div
-                      className={`relative rounded-2xl px-4 py-2 text-sm shadow-sm transition-all active:scale-[0.98] ${
-                        isOwn 
-                          ? 'bg-gradient-to-br from-primary to-primary/80 text-white rounded-br-none' 
-                          : 'bg-white text-zinc-900 rounded-bl-none dark:bg-zinc-900 dark:text-white dark:border dark:border-zinc-800'
-                      }`}
-                    >
-                      {msg.content}
-                      
-                      {/* Bubble Tail for first message in block */}
-                      {isLastInBlock && (
-                        <div className={`absolute bottom-0 w-3 h-3 ${isOwn ? '-right-1 bg-primary/80' : '-left-1 bg-white dark:bg-zinc-900'} [clip-path:polygon(0%_100%,100%_100%,100%_0%)] rotate-12 -z-10`} />
-                      )}
-                    </div>
-
-                    {/* Reaction Badges */}
+                    {msg.content}
+                    
+                    {/* Reaction Badges (Editorial Style) */}
                     {reactions.length > 0 && (
-                      <div className={`absolute -bottom-2 flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] shadow-md dark:bg-zinc-800 ring-1 ring-zinc-100 dark:ring-zinc-700 ${isOwn ? 'right-0' : 'left-0'}`}>
+                      <div className={`absolute -bottom-3 flex items-center gap-1 rounded-lg bg-black px-2 py-1 text-[10px] border border-white/10 shadow-2xl ${isOwn ? 'right-0' : 'left-0'}`}>
                         {Array.from(new Set(reactions.map(([_, emoji]) => emoji))).map(emoji => (
                           <span key={emoji}>{emoji}</span>
                         ))}
-                        {reactions.length > 1 && <span className="font-bold ml-1 opacity-60">{reactions.length}</span>}
+                        {reactions.length > 1 && <span className="font-black text-[8px] ml-1 opacity-50">{reactions.length}</span>}
                       </div>
                     )}
-                  </motion.div>
-                </div>
+                  </div>
+                </motion.div>
 
                 {isOwn && isLastMessage && isRead && (
-                  <div className="mt-1 pr-1">
-                    <p className="text-[9px] font-black uppercase tracking-tighter text-zinc-400">Seen</p>
+                  <div className="mt-2 pr-1">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-600 font-mono">Acknowledged</p>
                   </div>
                 )}
               </div>
@@ -286,48 +261,46 @@ const ChatRoom = () => {
         })}
         {otherUserTyping && (
           <div className="flex justify-start">
-            <div className="rounded-2xl bg-zinc-200 px-4 py-2 text-sm dark:bg-zinc-800">
-              <div className="flex gap-1">
-                <div className="h-1 w-1 animate-bounce rounded-full bg-zinc-400" />
-                <div className="h-1 w-1 animate-bounce rounded-full bg-zinc-400 [animation-delay:0.2s]" />
-                <div className="h-1 w-1 animate-bounce rounded-full bg-zinc-400 [animation-delay:0.4s]" />
+            <div className="rounded-xl bg-zinc-900 border border-white/5 px-4 py-3">
+              <div className="flex gap-1.5">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-white delay-150" />
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-white delay-300" />
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-zinc-100 bg-white p-4 pb-8 dark:border-zinc-800 dark:bg-zinc-900">
-        <form onSubmit={handleSend} className="flex items-end gap-2">
-          <button type="button" className="mb-2 text-zinc-400 hover:text-primary">
-            <Image size={24} />
+      {/* Editorial Noir Input Area */}
+      <div className="border-t border-white/[0.03] bg-[#020202] p-6 pb-12">
+        <form onSubmit={handleSend} className="flex items-center gap-3">
+          <button type="button" className="h-12 w-12 flex items-center justify-center rounded-xl bg-zinc-900 border border-white/5 text-zinc-500 hover:text-white transition-colors">
+            <Image size={20} />
           </button>
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Type a message..."
-              className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-800"
+              placeholder="Transmit message..."
+              className="w-full h-14 bg-zinc-900 border border-white/[0.03] rounded-xl px-6 text-sm focus:outline-none focus:border-white/20 transition-all font-medium placeholder:text-zinc-600"
               value={inputText}
               onChange={handleInputChange}
             />
-            {/* AI Suggestion Placeholder */}
             {messages.length === 0 && (
               <button 
                 type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary"
-                title="AI Icebreaker"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-primary"
               >
-                <Sparkles size={18} />
+                <Sparkles size={16} />
               </button>
             )}
           </div>
           <button 
             type="submit"
             disabled={!inputText.trim()}
-            className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white shadow-lg disabled:opacity-50"
+            className="h-14 w-14 flex items-center justify-center rounded-xl bg-white text-black shadow-xl disabled:opacity-30 transition-all active:scale-95"
           >
-            <Send size={18} />
+            <Send size={20} />
           </button>
         </form>
       </div>
@@ -335,13 +308,13 @@ const ChatRoom = () => {
       <Modal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        title="Profile Details"
+        title="CLEARANCE IDENTITY"
       >
         {recipient && (
-          <div className="h-[500px]">
+          <div className="h-[520px]">
             <ProfileCard 
               user={recipient} 
-              className="h-full"
+              className="h-full border-none shadow-none bg-transparent"
             />
           </div>
         )}
@@ -350,10 +323,10 @@ const ChatRoom = () => {
       <Modal
         isOpen={showActionMenu}
         onClose={() => setShowActionMenu(false)}
-        title="Message Actions"
+        title="MESSAGE DECRYPTION"
       >
-        <div className="space-y-4">
-          <div className="flex justify-center gap-4 py-2">
+        <div className="space-y-6">
+          <div className="grid grid-cols-6 gap-2">
             {['❤️', '😂', '😮', '😢', '🔥', '👍'].map(emoji => (
               <button
                 key={emoji}
@@ -363,7 +336,7 @@ const ChatRoom = () => {
                     setShowActionMenu(false);
                   }
                 }}
-                className="text-2xl transition-transform hover:scale-125"
+                className="h-12 flex items-center justify-center bg-zinc-900 border border-white/5 rounded-xl text-xl hover:bg-white hover:text-black transition-all"
               >
                 {emoji}
               </button>
@@ -376,10 +349,10 @@ const ChatRoom = () => {
                 setShowActionMenu(false);
               }
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-100 dark:border-rose-900/30 dark:bg-rose-900/20"
+            className="w-full flex items-center justify-center gap-3 h-14 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
           >
-            <Trash2 size={18} />
-            Unsend Message
+            <Trash2 size={16} />
+            Incinerate Message
           </button>
         </div>
       </Modal>

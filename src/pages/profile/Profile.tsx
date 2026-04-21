@@ -302,14 +302,29 @@ const Profile = () => {
     setUnblockingUid(null);
   };
 
-  const handleInstallApp = () => {
+  const handleInstallApp = async () => {
     if (isPwaInstalled()) {
       toast.success('UniVibe is already installed on this device.');
       return;
     }
 
+    // Attempt direct install if prompt is captured
+    const prompt = (window as any).deferredPwaPrompt;
+    if (prompt) {
+      try {
+        await prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === 'accepted') {
+          (window as any).deferredPwaPrompt = null;
+        }
+        return;
+      } catch (err) {
+        console.error('PWA prompt failed:', err);
+      }
+    }
+
     requestPwaInstallPrompt();
-    toast('Install prompt is ready. Check the banner at the bottom.');
+    toast('Install prompt is ready. Check the banner at the bottom.', { icon: '📲' });
   };
 
   const previewUser = {
