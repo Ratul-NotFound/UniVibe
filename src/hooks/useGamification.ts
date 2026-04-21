@@ -115,7 +115,10 @@ export const useGamification = () => {
       
       const data = missionSnap.data();
       if (data.status === 'Completed') return;
-      if (data.status !== 'Active') return; // Must accept first
+      
+      // Flash quests don't need acceptance. Legendary quests must be 'Active'.
+      const isFlash = data.isFlash || data.id.startsWith('f');
+      if (!isFlash && data.status !== 'Active') return; 
 
       const newProgress = data.progress + amount;
       const isCompleted = newProgress >= data.total;

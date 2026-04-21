@@ -113,7 +113,7 @@ export const useBroadcasts = () => {
 
   const igniteSignal = async (signalId: string) => {
     if (!user) return false;
-    const cost = 50;
+    const cost = 10;
     const success = await spendCoins(cost);
     
     if (success) {
