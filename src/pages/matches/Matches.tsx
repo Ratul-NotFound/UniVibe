@@ -9,7 +9,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
 import { 
   MessageCircle, Heart, ChevronRight, Mail, X, 
-  Search, Sparkles, Filter, Users, Zap, Compass 
+  Search, Sparkles, Filter, Users, Zap, Compass, Activity, Radio
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -23,6 +23,8 @@ import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { useSocial } from '@/hooks/useSocial';
 import { useNotes } from '@/hooks/useNotes';
 import { NotesRail } from '@/components/social/NotesRail';
+import { rtdb } from '@/lib/firebase';
+import { ref, onValue, off } from 'firebase/database';
 
 const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; className?: string }) => {
   if (!isOnline) return null;
@@ -114,6 +116,40 @@ const Matches = () => {
   const [activeNoteUid, setActiveNoteUid] = useState<string | null>(null);
   const { notes, myNote } = useNotes();
   
+  // Friends' live vibes from RTDB
+  const [friendVibes, setFriendVibes] = useState<Record<string, { vibe: string; name: string; photoURL: string | null; isOnline?: boolean }>>({});
+
+  useEffect(() => {
+    if (!rtdb || matches.length === 0) return;
+    const listeners: Array<() => void> = [];
+
+    matches.forEach(match => {
+      const uid = match.otherUserId;
+      if (!uid) return;
+      // Read from presence/{uid} - this path has rules allowing any auth user to read
+      const presenceRef = ref(rtdb, `presence/${uid}`);
+      const handler = onValue(presenceRef, (snap) => {
+        const data = snap.val();
+        if (data?.vibe) {
+          setFriendVibes(prev => ({
+            ...prev,
+            [uid]: {
+              vibe: data.vibe,
+              name: data.name || match.otherUser?.name || 'Friend',
+              photoURL: data.photoURL || match.otherUser?.photoURL || null,
+              isOnline: data.online === true,
+            }
+          }));
+        } else {
+          setFriendVibes(prev => { const n = { ...prev }; delete n[uid]; return n; });
+        }
+      });
+      listeners.push(() => off(presenceRef, 'value', handler));
+    });
+
+    return () => listeners.forEach(fn => fn());
+  }, [matches]);
+
   // Discovery State
   const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
   const [loadingDiscovery, setLoadingDiscovery] = useState(true);
@@ -176,14 +212,14 @@ const Matches = () => {
       onClick={() => setActiveTab(id)}
       className={`relative flex-1 flex flex-col items-center gap-2 px-2 py-4 rounded-xl transition-all duration-300 ${
         activeTab === id 
-          ? 'text-black bg-white shadow-xl' 
+          ? 'text-white bg-zinc-800 shadow-lg border border-white/[0.08]' 
           : 'text-zinc-600 hover:text-zinc-400'
       }`}
     >
       <Icon size={18} strokeWidth={activeTab === id ? 3 : 2} />
       <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em]">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className={`absolute right-1 sm:right-4 top-2 h-4 w-4 flex items-center justify-center rounded-full text-[8px] font-black ${activeTab === id ? 'bg-black text-white' : 'bg-primary text-white shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'}`}>
+        <span className="absolute right-1 sm:right-4 top-2 h-4 w-4 flex items-center justify-center rounded-full text-[8px] font-black bg-primary text-white shadow-[0_0_10px_rgba(212,83,126,0.5)]">
           {count}
         </span>
       )}
@@ -266,6 +302,57 @@ const Matches = () => {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
+              {/* Circle Activity — Live Friend Vibes */}
+              <div className="mb-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <Activity size={12} className="text-primary animate-pulse" />
+                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 font-mono">Circle Activity</h2>
+                  <div className="flex-1 h-[1px] bg-white/[0.04]" />
+                  <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">
+                    {Object.keys(friendVibes).length > 0 ? `${Object.keys(friendVibes).length} vibing` : 'No active vibes'}
+                  </span>
+                </div>
+                {Object.keys(friendVibes).length > 0 ? (
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                    {Object.entries(friendVibes).map(([uid, data]) => {
+                      const vibeEmojis: Record<string, string> = {
+                        Gaming: '🎮', Studying: '📚', Coffee: '☕',
+                        Party: '🎵', Library: '📖', Incognito: '👻'
+                      };
+                      const emoji = vibeEmojis[data.vibe] || '📡';
+                      const matchEntry = matches.find(m => m.otherUserId === uid);
+                      return (
+                        <button
+                          key={uid}
+                          onClick={() => matchEntry?.chatId && navigate(`/chat/${matchEntry.chatId}`)}
+                          className="flex-shrink-0 flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-zinc-900/60 border border-white/[0.05] hover:border-primary/30 hover:bg-zinc-800/60 transition-all group"
+                        >
+                          <div className="relative">
+                            <div className="h-11 w-11 rounded-full overflow-hidden bg-zinc-800 border border-white/10">
+                              {data.photoURL ? (
+                                <img src={data.photoURL} alt={data.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center font-black text-xs text-primary">{data.name?.[0]}</div>
+                              )}
+                            </div>
+                            <span className="absolute -bottom-1 -right-1 text-sm leading-none drop-shadow-sm">{emoji}</span>
+                            {data.isOnline && (
+                              <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-zinc-900" />
+                            )}
+                          </div>
+                          <span className="text-[8px] font-black uppercase tracking-wide text-zinc-300 group-hover:text-white transition-colors max-w-[60px] truncate">{data.name?.split(' ')[0]}</span>
+                          <span className="text-[7px] font-bold text-zinc-600 uppercase">{data.vibe}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest py-3 text-center">
+                    Friends vibes will appear here when they set one
+                  </p>
+                )}
+              </div>
+
               {/* Friend Pulse Activity Rail */}
               <div className="mb-4">
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 font-mono mb-2 px-1">Friend Pulse</h2>

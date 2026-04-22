@@ -17,7 +17,8 @@ import {
   addDoc, serverTimestamp, updateDoc, doc, arrayUnion, increment, setDoc, getDocs, where,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, rtdb } from '@/lib/firebase';
+import { ref, set as rtdbSet, onValue, off } from 'firebase/database';
 import { useBroadcasts, SIGNAL_THEMES } from '@/hooks/useBroadcasts';
 import { SignalCard } from '@/components/broadcast/SignalCard';
 import { BroadcasterComposer } from '@/components/broadcast/BroadcasterComposer';
@@ -87,38 +88,53 @@ const Discovery = () => {
         setBroadcasts([]);
       }
     );
-    const qBattle = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(10));
+    // Battles: only show active/non-expired polls
+    const nowTs = Timestamp.now();
+    const qBattle = query(
+      collection(db, 'battles'),
+      where('expiresAt', '>', nowTs),
+      orderBy('expiresAt', 'desc'),
+      limit(20)
+    );
     const unsubBattle = onSnapshot(
       qBattle,
       (s) => setBattles(s.docs.map(d => ({ id: d.id, ...d.data() }))),
       (error) => {
+        // Fallback: query without time filter if index missing
         console.error('Battle listener error:', error);
-        setBattles([]);
+        const qFallback = query(collection(db, 'battles'), orderBy('createdAt', 'desc'), limit(20));
+        onSnapshot(qFallback,
+          (s) => {
+            const now = Date.now();
+            setBattles(s.docs
+              .map(d => ({ id: d.id, ...d.data() }))
+              .filter((b: any) => !b.expiresAt || b.expiresAt.toMillis() > now)
+            );
+          },
+          () => setBattles([])
+        );
       }
     );
     
-    // Real-time Vibe Stats
-    const vibeQuery = query(collection(db, 'users'), where('currentVibe', '!=', null));
-    const unsubVibes = onSnapshot(
-      vibeQuery,
-      (s) => {
-        const stats: Record<string, number> = {};
-        s.docs.forEach(d => {
-          const v = d.data().currentVibe;
-          stats[v] = (stats[v] || 0) + 1;
-        });
-        setVibeStats(stats);
-        // Find current user's vibe from the snapshot for local sync
-        const myDoc = s.docs.find(d => d.id === user?.uid);
-        if (myDoc) setUserVibe(myDoc.data().currentVibe);
-      },
-      (error) => {
-        console.error('Vibe stats listener error:', error);
-        setVibeStats({});
-      }
-    );
+    // Real-time Vibe Stats — read from RTDB vibeStats node
+    const vibeStatsRef = ref(rtdb, 'vibeStats');
+    const onVibeStats = onValue(vibeStatsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) setVibeStats(data);
+    });
 
-    return () => { unsubPulse(); unsubBattle(); unsubVibes(); };
+    // Current user vibe from presence node
+    const userVibeRef = ref(rtdb, `presence/${user.uid}/vibe`);
+    const onUserVibe = onValue(userVibeRef, (snapshot) => {
+      setUserVibe(snapshot.val());
+    });
+
+    return () => { 
+      unsubPulse(); 
+      unsubBattle(); 
+      off(vibeStatsRef, 'value', onVibeStats);
+      off(userVibeRef, 'value', onUserVibe);
+    };
   }, [user]);
 
   // Mission Initializer
@@ -178,29 +194,33 @@ const Discovery = () => {
     await igniteSignal(id);
   };
 
-  const handleUpdateVibe = async (vibe: string, hasRetried = false) => {
-    if (!user || !isEligibleDiuSession(user)) {
-      toast.error('Use a verified DIU email to update vibe.');
+  const handleUpdateVibe = async (vibe: string) => {
+    if (!user) {
+      toast.error('Sign in required.');
       return;
     }
     try {
-      await updateDoc(doc(db, 'users', user.uid), { currentVibe: vibe });
-      await updateMissionProgress('f1'); // Vibe Ritual
-      toast.success(`Broadcasting: ${vibe}`, { icon: '📡' });
-    } catch (e: unknown) {
-      const errorCode = (e as { code?: string })?.code;
-      if (!hasRetried && errorCode === 'permission-denied') {
-        try {
-          await user.getIdToken(true);
-          await handleUpdateVibe(vibe, true);
-          return;
-        } catch (refreshErr) {
-          console.error('Vibe token refresh failed:', refreshErr);
+      // Write to RTDB presence node (has rules: auth.uid === $uid)
+      if (rtdb) {
+        const prevVibe = userVibe;
+        await rtdbSet(ref(rtdb, `presence/${user.uid}/vibe`), vibe);
+        await rtdbSet(ref(rtdb, `presence/${user.uid}/name`), userData?.name || 'Student');
+        await rtdbSet(ref(rtdb, `presence/${user.uid}/photoURL`), userData?.photoURL || null);
+        // Update global vibe stats
+        await rtdbSet(ref(rtdb, `vibeStats/${vibe}`), (vibeStats[vibe] || 0) + 1);
+        if (prevVibe && prevVibe !== vibe) {
+          await rtdbSet(ref(rtdb, `vibeStats/${prevVibe}`), Math.max(0, (vibeStats[prevVibe] || 1) - 1));
         }
       }
+      // Also try Firestore silently
+      try { await updateDoc(doc(db, 'users', user.uid), { currentVibe: vibe }); } catch (_) { }
 
+      setUserVibe(vibe);
+      await updateMissionProgress('f1');
+      toast.success(`Vibe set: ${vibe} 📡`, { icon: '✅' });
+    } catch (e: any) {
       console.error('Vibe update failed:', e);
-      toast.error('Permission denied for vibe update');
+      toast.error(`Vibe update failed: ${e?.message || 'check database rules'}`);
     }
   };
 

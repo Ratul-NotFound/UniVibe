@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { SIGNAL_THEMES } from '@/hooks/useBroadcasts';
 import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { rtdb } from '@/lib/firebase';
+import { ref, push, set } from 'firebase/database';
 import { toast } from 'react-hot-toast';
 
 interface SignalCardProps {
@@ -32,26 +32,27 @@ const ShareModal: React.FC<{
   const [sent, setSent] = useState<string[]>([]);
 
   const handleSend = async (match: any) => {
-    if (!user || !db || sent.includes(match.chatId)) return;
+    if (!user || !rtdb || sent.includes(match.chatId)) return;
+    const chatId = match.chatId;
+    if (!chatId) {
+      toast.error('No chat with this friend yet');
+      return;
+    }
     setSending(match.otherUserId);
     try {
-      const chatRef = collection(db, 'chats', match.chatId, 'messages');
-      await addDoc(chatRef, {
-        type: 'signal_share',
+      const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
+      const newMsgRef = push(messagesRef);
+      await set(newMsgRef, {
         senderId: user.uid,
-        senderName: userData?.name || 'Someone',
-        senderPhotoURL: userData?.photoURL || null,
-        content: `📡 Shared a Feed Signal: "${signal.content?.slice(0, 80)}${signal.content?.length > 80 ? '…' : ''}"`,
-        signalId: signal.id,
-        signalContent: signal.content,
-        signalCategory: signal.category,
-        signalAuthor: signal.isAnonymous ? 'Anonymous' : signal.fromName,
-        createdAt: serverTimestamp(),
-        readBy: [user.uid],
+        content: `📡 Shared a Signal: "${signal.content?.slice(0, 100)}${signal.content?.length > 100 ? '…' : ''}"`,
+        type: 'signal_share',
+        timestamp: Date.now(),
+        readBy: { [user.uid]: true },
       });
       setSent(prev => [...prev, match.chatId]);
       toast.success(`Sent to ${match.otherUser?.name || 'friend'}!`, { icon: '📩' });
     } catch (err) {
+      console.error('Share error:', err);
       toast.error('Failed to send');
     } finally {
       setSending(null);

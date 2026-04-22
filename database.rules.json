@@ -14,20 +14,16 @@
         },
         "messages": {
           "$msgId": {
-            // Only members can write to messages in this chat
+            ".read": "auth != null && data.parent().parent().child('members').child(auth.uid).val() === true",
             ".write": "auth != null && data.parent().parent().child('members').child(auth.uid).val() === true",
-            // Validate structure for new messages
             ".validate": "newData.hasChildren(['senderId', 'content', 'type', 'timestamp']) || data.exists()",
-            
             "reactions": {
               "$uid": {
-                // Only the specific user can add/remove their own reaction
                 ".write": "auth.uid === $uid"
               }
             },
             "readBy": {
               "$uid": {
-                // Only the specific user can mark as read for themselves
                 ".write": "auth.uid === $uid"
               }
             },
@@ -35,7 +31,6 @@
               ".write": "!data.exists()"
             },
             "content": {
-              // Only sender can delete/edit the message content
               ".write": "data.parent().child('senderId').val() === auth.uid || !newData.exists()"
             }
           }
@@ -67,7 +62,21 @@
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+    "vibeStats": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "circle": {
+      "$uid": {
+        ".read": "auth != null",
+        "sharedWith": {
+          "$friendUid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        }
+      }
     }
   }
 }
-

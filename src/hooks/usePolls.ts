@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { 
   collection, addDoc, serverTimestamp, 
-  query, orderBy, limit, 
+  query, orderBy, limit, where,
   onSnapshot, updateDoc, doc, 
-  increment, arrayUnion 
+  increment, arrayUnion, Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -29,12 +29,14 @@ export interface PollBattle {
   };
   voters: string[];
   createdAt: any;
+  expiresAt: any;
   category: string;
+  status: 'active' | 'ended';
 }
 
 export const usePolls = () => {
   const { user, userData } = useAuth();
-  const { spendCoins, updateMissionProgress } = useGamification();
+  const { updateMissionProgress } = useGamification();
 
   const createPoll = async (data: {
     title: string;
@@ -46,16 +48,10 @@ export const usePolls = () => {
   }) => {
     if (!user) return null;
 
-    // Optional: Deduct coins for creating a battle to prevent spam
-    const cost = 25; // Lowered for testing
-    const success = await spendCoins(cost);
-    
-    if (!success) {
-      toast.error('Insufficient UniCoins to start a debate!');
-      return null;
-    }
-
     try {
+      // Polls expire after 24 hours
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
       const pollData = {
         title: data.title,
         creatorId: user.uid,
@@ -64,25 +60,28 @@ export const usePolls = () => {
           name: data.leftName,
           icon: data.leftIcon,
           votes: 0,
-          color: 'from-amber-500/20 to-orange-600/20' // Default thermal
+          color: 'from-primary/20 to-rose-600/20'
         },
         right: {
           name: data.rightName,
           icon: data.rightIcon,
           votes: 0,
-          color: 'from-blue-500/20 to-cyan-600/20' // Default cool
+          color: 'from-blue-500/20 to-cyan-600/20'
         },
         voters: [],
         createdAt: serverTimestamp(),
-        category: data.category
+        expiresAt,
+        category: data.category,
+        status: 'active'
       };
 
       const docRef = await addDoc(collection(db, 'battles'), pollData);
-      await updateMissionProgress('q2'); // Opinion Leader
+      await updateMissionProgress('q2');
       toast.success('Poll Arena is Live! 🏟️');
       return docRef.id;
     } catch (error) {
       console.error('Error creating poll:', error);
+      toast.error('Failed to create poll');
       throw error;
     }
   };
@@ -105,6 +104,7 @@ export const usePolls = () => {
 
   const seedDefaultPolls = async () => {
     if (!user) return;
+    const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
     const defaults = [
       { title: 'The Ultimate Wakeup', leftName: 'Chai', leftIcon: '☕', rightName: 'Coffee', rightIcon: '🥤', category: 'Lifestyle' },
       { title: 'Weekend Vibe', leftName: 'Mountains', leftIcon: '🏔️', rightName: 'Sea Side', rightIcon: '🌊', category: 'Nature' },
@@ -114,13 +114,16 @@ export const usePolls = () => {
 
     for (const poll of defaults) {
       await addDoc(collection(db, 'battles'), {
-        ...poll,
+        title: poll.title,
         creatorId: 'system',
         creatorName: 'UniVibe',
-        left: { ...poll, name: poll.leftName, icon: poll.leftIcon, votes: 0, color: 'from-amber-500/20 to-orange-600/20' },
-        right: { ...poll, name: poll.rightName, icon: poll.rightIcon, votes: 0, color: 'from-blue-500/20 to-cyan-600/20' },
+        left: { name: poll.leftName, icon: poll.leftIcon, votes: 0, color: 'from-primary/20 to-rose-600/20' },
+        right: { name: poll.rightName, icon: poll.rightIcon, votes: 0, color: 'from-blue-500/20 to-cyan-600/20' },
         voters: [],
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        expiresAt,
+        category: poll.category,
+        status: 'active'
       });
     }
     toast.success('Seeded initial polls!');
