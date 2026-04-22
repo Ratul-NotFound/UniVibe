@@ -10,11 +10,14 @@ import { toast } from 'react-hot-toast';
 import { Modal } from '@/components/ui/Modal';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
 import ProfileCard from '@/components/profile/ProfileCard';
+import { useNotes } from '@/hooks/useNotes';
+import { NotesRail } from '@/components/social/NotesRail';
+import { motion, AnimatePresence } from 'framer-motion';
 
-type UserNote = {
-  text: string;
-  expiresAt: number;
-};
+// Global Social State & Interaction Layer
+
+
+
 
 const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; className?: string }) => {
   if (!isOnline) return null;
@@ -23,59 +26,7 @@ const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; classNam
   );
 };
 
-const NoteAvatar = ({ 
-  uid, 
-  photoURL, 
-  name, 
-  isSelf, 
-  hasNote,
-  onClick,
-}: { 
-  uid: string; 
-  photoURL?: string | null; 
-  name: string; 
-  isSelf: boolean; 
-  hasNote: boolean;
-  onClick?: () => void;
-}) => {
-  const { isOnline } = usePresenceStatus(uid);
 
-  return (
-    <div 
-      onClick={(e) => {
-        if (onClick) {
-          e.stopPropagation();
-          onClick();
-        }
-      }}
-      className="mx-auto mb-2 h-16 w-16 relative cursor-pointer group"
-    >
-      <div className={`h-full w-full rounded-2xl overflow-hidden border transition-all duration-300 ${
-        hasNote ? 'border-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]' : 'border-white/5'
-      }`}>
-        <div className="h-full w-full bg-zinc-800">
-          {photoURL ? (
-            <img src={photoURL} alt={name} className="h-full w-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-zinc-600">
-              <User size={20} />
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {isOnline && !isSelf && (
-        <PresenceDot isOnline={true} className="bottom-0.5 right-0.5" />
-      )}
-
-      {isSelf && !hasNote && (
-        <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-lg bg-white text-black shadow-xl">
-          <Plus size={14} />
-        </div>
-      )}
-    </div>
-  );
-};
 
 const ChatListItem = ({ match, onAvatarClick }: { match: any; onAvatarClick: (user: any) => void }) => {
   const [otherUser, setOtherUser] = useState<any>(match.otherUser || null);
@@ -161,64 +112,17 @@ const ChatListItem = ({ match, onAvatarClick }: { match: any; onAvatarClick: (us
 const ChatList = () => {
   const { user, userData } = useAuth();
   const { matches, loading } = useMatches();
+  const { notes, postNote: postNoteToSystem, deleteNote, myNote } = useNotes();
+  const navigate = useNavigate();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showComposer, setShowComposer] = useState(false);
-  const [noteInput, setNoteInput] = useState('');
   const [isPostingNote, setIsPostingNote] = useState(false);
-  const [notesByUid, setNotesByUid] = useState<Record<string, UserNote>>({});
   const [activeNoteUid, setActiveNoteUid] = useState<string | null>(null);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
+  const [noteInput, setNoteInput] = useState(myNote?.text || '');
 
-  useEffect(() => {
-    if (!user) {
-      setNotesByUid({});
-      setNoteInput('');
-      return;
-    }
-
-    const connectedUids = Array.from(new Set(matches.map((m) => m.otherUserId).filter(Boolean)));
-    const watchUids = [user.uid, ...connectedUids];
-    const unsubs: Array<() => void> = [];
-
-    watchUids.forEach((uid) => {
-      const unsub = onSnapshot(doc(db, 'notes', uid), (snap) => {
-        setNotesByUid((prev) => {
-          const next = { ...prev };
-
-          if (!snap.exists()) {
-            delete next[uid];
-            return next;
-          }
-
-          const data = snap.data() as { text?: string; expiresAt?: { toMillis?: () => number } };
-          const expiresAt = typeof data.expiresAt?.toMillis === 'function' ? data.expiresAt.toMillis() : 0;
-          const text = (data.text || '').trim();
-
-          if (!text || expiresAt <= Date.now()) {
-            delete next[uid];
-            return next;
-          }
-
-          next[uid] = { text, expiresAt };
-          return next;
-        });
-
-        if (uid === user.uid && snap.exists()) {
-          const data = snap.data() as { text?: string; expiresAt?: { toMillis?: () => number } };
-          const expiresAt = typeof data.expiresAt?.toMillis === 'function' ? data.expiresAt.toMillis() : 0;
-          if (expiresAt > Date.now()) {
-            setNoteInput((data.text || '').trim());
-          }
-        }
-      });
-
-      unsubs.push(unsub);
-    });
-
-    return () => {
-      unsubs.forEach((unsub) => unsub());
-    };
-  }, [matches, user]);
+  const activeNote = activeNoteUid ? notes[activeNoteUid] : null;
 
   const postNote = async () => {
     if (!user) return;
@@ -236,17 +140,7 @@ const ChatList = () => {
 
     try {
       setIsPostingNote(true);
-      await setDoc(
-        doc(db, 'notes', user.uid),
-        {
-          ownerUid: user.uid,
-          text,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
-        },
-        { merge: true }
-      );
+      await postNoteToSystem(text);
       toast.success('System note updated.', { icon: '📝' });
       setShowComposer(false);
     } catch (error) {
@@ -257,39 +151,9 @@ const ChatList = () => {
     }
   };
 
-  const noteCards = (() => {
-    const cards: Array<{ uid: string; name: string; photoURL?: string | null; text: string; isSelf: boolean; hasNote: boolean }> = [];
-
-    if (user) {
-      cards.push({
-        uid: user.uid,
-        name: 'You',
-        photoURL: userData?.photoURL || user.photoURL || null,
-        text: notesByUid[user.uid]?.text || '',
-        isSelf: true,
-        hasNote: Boolean(notesByUid[user.uid]),
-      });
-    }
-
-    matches.forEach((m) => {
-      const uid = m.otherUserId;
-      const note = uid ? notesByUid[uid] : null;
-      if (!uid) return;
-
-      cards.push({
-        uid,
-        name: m.otherUser?.name || 'Student',
-        photoURL: m.otherUser?.photoURL || null,
-        text: note?.text || '',
-        isSelf: false,
-        hasNote: Boolean(note),
-      });
-    });
-
-    return cards;
-  })();
-
-  const activeNote = activeNoteUid ? noteCards.find((n) => n.uid === activeNoteUid) || null : null;
+  useEffect(() => {
+    if (myNote) setNoteInput(myNote.text);
+  }, [myNote]);
 
   const filteredMatches = matches.filter((match) => {
     const other = match.otherUser || {};
@@ -324,37 +188,15 @@ const ChatList = () => {
             )}
           </div>
 
-          <div className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar pb-6">
-            {noteCards.map((card) => {
-              return (
-                <button
-                  key={card.uid}
-                  type="button"
-                  onClick={() => {
-                    setActiveNoteUid(card.uid);
-                    if (card.isSelf && !card.hasNote) setShowComposer(true);
-                  }}
-                  className="relative w-16 shrink-0 text-center"
-                >
-                  <NoteAvatar 
-                    uid={card.uid}
-                    photoURL={card.photoURL}
-                    name={card.name}
-                    isSelf={card.isSelf}
-                    hasNote={card.hasNote}
-                    onClick={() => {
-                      if (!card.isSelf) {
-                        const match = matches.find(m => m.otherUserId === card.uid);
-                        setSelectedUserForProfile(match?.otherUser || { id: card.uid, name: card.name, photoURL: card.photoURL });
-                      }
-                    }}
-                  />
-                  <p className="line-clamp-1 text-[9px] font-black uppercase tracking-[0.1em] text-zinc-600 font-mono">
-                    {card.isSelf ? 'YOU' : card.name.split(' ')[0]}
-                  </p>
-                </button>
-              );
-            })}
+          <div className="no-scrollbar">
+            <NotesRail 
+              onNoteClick={(uid) => {
+                setActiveNoteUid(uid);
+                if (uid === user.uid && !myNote) setShowComposer(true);
+              }}
+              onProfileClick={(otherUser) => setSelectedUserForProfile(otherUser)}
+              onChatClick={(chatId) => navigate(`/chat/${chatId}`)}
+            />
           </div>
 
           {showComposer && (
@@ -424,10 +266,10 @@ const ChatList = () => {
       <Modal
         isOpen={Boolean(activeNoteUid)}
         onClose={() => setActiveNoteUid(null)}
-        title={activeNote?.isSelf ? 'LOGGED NOTE' : 'SYSTEM NOTE'}
+        title={activeNoteUid === user?.uid ? 'LOGGED NOTE' : 'SYSTEM NOTE'}
       >
         <div className="space-y-6 p-2">
-          {activeNote?.hasNote ? (
+          {activeNote ? (
             <div className="rounded-2xl border border-white/5 bg-zinc-900 p-6 text-sm text-zinc-200 leading-relaxed font-medium">
                 {activeNote.text}
             </div>
@@ -437,7 +279,7 @@ const ChatList = () => {
             </div>
           )}
 
-          {activeNote?.isSelf && (
+          {activeNoteUid === user?.uid && (
             <div className="flex items-center gap-3">
               <input
                 type="text"

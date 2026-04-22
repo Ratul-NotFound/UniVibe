@@ -96,6 +96,7 @@ const AdminReports = () => {
                     <Trash2 size={16} />
                   </Button>
                </div>
+               </div>
             </Card>
           ))
         ) : (

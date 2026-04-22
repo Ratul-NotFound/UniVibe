@@ -138,7 +138,7 @@ const PwaInstallPrompt: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-24 z-40 mx-auto w-auto max-w-md rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 md:bottom-6">
+    <div className="fixed inset-x-3 bottom-28 z-[60] mx-auto w-auto max-w-md rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 md:bottom-6">
       <button
         aria-label="Dismiss install prompt"
         onClick={dismissPrompt}

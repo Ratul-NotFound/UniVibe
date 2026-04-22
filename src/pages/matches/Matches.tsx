@@ -21,6 +21,8 @@ import { usePresenceStatus } from '@/hooks/usePresenceStatus';
 import { DiscoveryCard } from '@/components/matches/DiscoveryCard';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { useSocial } from '@/hooks/useSocial';
+import { useNotes } from '@/hooks/useNotes';
+import { NotesRail } from '@/components/social/NotesRail';
 
 const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; className?: string }) => {
   if (!isOnline) return null;
@@ -109,6 +111,8 @@ const Matches = () => {
   const [activeTab, setActiveTab] = useState<'discover' | 'mutual' | 'incoming' | 'sent'>('discover');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
+  const [activeNoteUid, setActiveNoteUid] = useState<string | null>(null);
+  const { notes, myNote } = useNotes();
   
   // Discovery State
   const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
@@ -241,7 +245,7 @@ const Matches = () => {
                    ))}
                  </div>
                ) : (
-                 <div className="py-20 text-center">
+                 <div className="py-12 sm:py-20 text-center">
                     <div className="mb-6 h-20 w-20 mx-auto bg-zinc-900/50 rounded-full flex items-center justify-center text-zinc-700">
                        <Compass size={40} />
                     </div>
@@ -253,13 +257,23 @@ const Matches = () => {
           )}
 
           {activeTab === 'mutual' && (
-            <motion.div
+             <motion.div
               key="mutual"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
+              {/* Friend Pulse Activity Rail */}
+              <div className="mb-4">
+                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 font-mono mb-2 px-1">Friend Pulse</h2>
+                 <NotesRail 
+                   onNoteClick={(uid) => setActiveNoteUid(uid)}
+                   onProfileClick={(u) => setSelectedUserForProfile(u)}
+                   onChatClick={(chatId) => navigate(`/chat/${chatId}`)}
+                 />
+              </div>
+
               {/* Search Bar */}
               <div className="relative mb-8">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
@@ -286,7 +300,7 @@ const Matches = () => {
                   ))}
                 </div>
               ) : (
-                <div className="mt-20 flex flex-col items-center text-center">
+                <div className="mt-12 sm:mt-20 flex flex-col items-center text-center">
                   <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900 border border-white/5 text-zinc-800">
                     <Heart size={48} strokeWidth={1} />
                   </div>
@@ -342,7 +356,7 @@ const Matches = () => {
                   </div>
                 ))
               ) : (
-                <div className="mt-20 flex flex-col items-center text-center">
+                <div className="mt-12 sm:mt-20 flex flex-col items-center text-center">
                   <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900 border border-white/5 text-zinc-800">
                     <Mail size={40} strokeWidth={1} />
                   </div>
@@ -387,7 +401,7 @@ const Matches = () => {
                   </div>
                 ))
               ) : (
-                <div className="mt-20 flex flex-col items-center text-center">
+                <div className="mt-12 sm:mt-20 flex flex-col items-center text-center">
                   <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900 border border-white/5 text-zinc-800">
                     <Zap size={40} strokeWidth={1} />
                   </div>
@@ -413,6 +427,34 @@ const Matches = () => {
             />
           </div>
         )}
+      </Modal>
+
+      {/* Note View Modal */}
+      <Modal
+        isOpen={Boolean(activeNoteUid)}
+        onClose={() => setActiveNoteUid(null)}
+        title={activeNoteUid === user?.uid ? 'LOGGED NOTE' : 'SYSTEM NOTE'}
+      >
+        <div className="space-y-6 p-2">
+          {activeNoteUid && notes[activeNoteUid] ? (
+            <div className="rounded-2xl border border-white/5 bg-zinc-900 p-6 text-sm text-zinc-200 leading-relaxed font-medium">
+                {notes[activeNoteUid].text}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 p-6 text-xs text-zinc-600 uppercase tracking-widest text-center">
+                NO ACTIVE FREQUENCY
+            </div>
+          )}
+
+          {activeNoteUid === user?.uid && (
+            <Button 
+              onClick={() => navigate('/chat')} 
+              className="w-full h-12 rounded-xl font-black uppercase text-[10px] tracking-widest"
+            >
+              Update Note in Inbox
+            </Button>
+          )}
+        </div>
       </Modal>
     </div>
   );

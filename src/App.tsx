@@ -19,6 +19,7 @@ import AdminUsers from '@/pages/admin/Users';
 import AdminReports from '@/pages/admin/Reports';
 import AppLayout from '@/components/layout/AppLayout';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 // Placeholder Pages
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
@@ -53,8 +54,9 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-white dark:bg-zinc-950">
-        <Routes>
+      <ErrorBoundary>
+        <div className="min-h-screen bg-white dark:bg-zinc-950">
+          <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -132,6 +134,7 @@ function App() {
           } />
         </Routes>
       </div>
+      </ErrorBoundary>
     </Router>
   );
 }

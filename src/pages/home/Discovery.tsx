@@ -365,7 +365,8 @@ const Discovery = () => {
                     { id: 'Coffee', icon: Coffee, color: 'text-amber-500', bg: 'bg-amber-500/5' },
                     { id: 'Party', icon: Music, color: 'text-rose-400', bg: 'bg-rose-400/5' },
                     { id: 'Library', icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-400/5' },
-                    { id: 'Incognito', icon: GhostIcon, color: 'text-zinc-400', bg: 'bg-                   ].map((cat) => (
+                    { id: 'Incognito', icon: GhostIcon, color: 'text-zinc-400', bg: 'bg-zinc-400/5' }
+                  ].map((cat) => (
                     <button 
                       key={cat.id} 
                       onClick={() => handleUpdateVibe(cat.id)}
@@ -574,9 +575,8 @@ const Discovery = () => {
       </main>
 
       {/* Removed Redundant Navigation - Managed by AppLayout */}
-    </div>
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 export default Discovery;
