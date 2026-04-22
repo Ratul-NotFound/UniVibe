@@ -57,8 +57,8 @@ const PwaInstallPrompt: React.FC = () => {
     }
 
     // Check for global prompt captured in index.html
-    if (window.deferredPwaPrompt) {
-      setDeferredPrompt(window.deferredPwaPrompt);
+    if ((window as any).deferredPwaPrompt) {
+      setDeferredPrompt((window as any).deferredPwaPrompt);
     }
 
     const dismissedAt = Number(localStorage.getItem(DISMISSED_AT_KEY) || 0);
@@ -71,8 +71,8 @@ const PwaInstallPrompt: React.FC = () => {
     };
 
     const onPromptReady = () => {
-      if (window.deferredPwaPrompt) {
-        setDeferredPrompt(window.deferredPwaPrompt);
+      if ((window as any).deferredPwaPrompt) {
+        setDeferredPrompt((window as any).deferredPwaPrompt);
       }
     };
 
@@ -80,7 +80,7 @@ const PwaInstallPrompt: React.FC = () => {
       localStorage.setItem(INSTALLED_KEY, 'true');
       setIsInstalled(true);
       setDeferredPrompt(null);
-      window.deferredPwaPrompt = null;
+      (window as any).deferredPwaPrompt = null;
     };
 
     const onForceShow = () => {
@@ -111,7 +111,7 @@ const PwaInstallPrompt: React.FC = () => {
   };
 
   const handleInstall = async () => {
-    const prompt = deferredPrompt || window.deferredPwaPrompt;
+    const prompt = deferredPrompt || (window as any).deferredPwaPrompt;
     if (!prompt) return;
 
     await prompt.prompt();
@@ -120,7 +120,7 @@ const PwaInstallPrompt: React.FC = () => {
     if (result.outcome === 'accepted') {
       localStorage.setItem(INSTALLED_KEY, 'true');
       setIsInstalled(true);
-      window.deferredPwaPrompt = null;
+      (window as any).deferredPwaPrompt = null;
     } else {
       dismissPrompt();
     }

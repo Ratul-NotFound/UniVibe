@@ -339,9 +339,9 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24 dark:bg-zinc-950">
+    <div className="min-h-screen bg-[#020202] pb-24">
       {/* Header Profile Section */}
-      <div className="relative overflow-hidden bg-white px-4 sm:px-6 pt-12 sm:pt-16 pb-8 sm:pb-10 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/50">
+      <div className="relative overflow-hidden bg-zinc-900 px-4 sm:px-6 pt-12 sm:pt-16 pb-8 sm:pb-10 border-b border-white/[0.06]">
         {/* Abstract Background Decoration */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-0 left-0 -ml-16 -mb-16 h-48 w-48 rounded-full bg-secondary/5 blur-3xl" />

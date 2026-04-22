@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
@@ -54,9 +55,8 @@ function App() {
 
   return (
     <Router>
-      <ErrorBoundary>
-        <div className="min-h-screen bg-white dark:bg-zinc-950">
-          <Routes>
+      <div className="min-h-screen bg-[#020202] text-zinc-100">
+        <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -134,7 +134,6 @@ function App() {
           } />
         </Routes>
       </div>
-      </ErrorBoundary>
     </Router>
   );
 }

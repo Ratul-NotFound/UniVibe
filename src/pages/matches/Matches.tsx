@@ -105,7 +105,7 @@ const Matches = () => {
     cancelRequest,
   } = useMatches();
   const { user, userData } = useAuth();
-  const { sendRequest } = useSocial();
+  const { connect } = useSocial();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'discover' | 'mutual' | 'incoming' | 'sent'>('discover');
@@ -159,7 +159,7 @@ const Matches = () => {
 
   const handleConnect = async (uid: string) => {
     try {
-      await sendRequest(uid);
+      await connect({ id: uid });
       toast.success('Spark Transmitted!', { icon: '✨' });
     } catch (err) {
       toast.error('Could not transmit spark.');
@@ -194,7 +194,7 @@ const Matches = () => {
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#020202]/98 px-6 sm:px-8 pt-8 sm:pt-12 pb-6 border-b border-white/[0.03]">
-        <div className="max-w-lg mx-auto flex items-center justify-between mb-8 sm:mb-10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between mb-8 sm:mb-10">
            <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Synergy Engine</h1>
            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
               <Filter size={18} />
@@ -202,15 +202,17 @@ const Matches = () => {
         </div>
 
         {/* Editorial Tab Navigation */}
-        <div className="max-w-lg mx-auto bg-zinc-900/50 p-1.5 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.05] flex justify-around shadow-xl overflow-hidden">
+        <div className="max-w-7xl mx-auto mb-4">
+          <div className="max-w-lg mx-auto bg-zinc-900/50 p-1.5 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.05] flex justify-around shadow-xl overflow-hidden">
            <TabButton id="discover" label="Discover" icon={Compass} />
            <TabButton id="mutual" label="Circle" icon={Users} count={matches.length} />
            <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
            <TabButton id="sent" label="Pending" icon={Zap} count={outgoingRequests.length} />
         </div>
+      </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-6 sm:px-8 pt-8 sm:pt-10 pb-32">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 pt-8 sm:pt-10 pb-32 lg:pb-12">
         <AnimatePresence mode="wait">
           {activeTab === 'discover' && (
             <motion.div
@@ -233,7 +235,7 @@ const Matches = () => {
                    ))}
                  </div>
                ) : discoveryUsers.length > 0 ? (
-                 <div className="grid grid-cols-1 gap-8">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                    {discoveryUsers.map(u => (
                      <DiscoveryCard 
                        key={u.id}
@@ -286,11 +288,11 @@ const Matches = () => {
               </div>
 
               {matchesLoading ? (
-                <div className="space-y-6">
-                  {[1, 2, 3].map(i => <div key={i} className="h-20 animate-pulse rounded-[1.5rem] bg-zinc-900/50" />)}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                  {[1, 2, 3, 4].map(i => <div key={i} className="h-20 animate-pulse rounded-[1.5rem] bg-zinc-900/50" />)}
                 </div>
               ) : filteredMatches.length > 0 ? (
-                <div className="bg-zinc-950/40 backdrop-blur-2xl rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8">
+                <div className="bg-zinc-950/40 backdrop-blur-2xl rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12">
                    {filteredMatches.map(match => (
                     <MatchItem 
                       key={match.id} 
