@@ -184,7 +184,7 @@ const Search = () => {
   }, [profiles, searchTerm, selectedYear, selectedLookingFor, selectedDept, user?.uid]);
 
   return (
-    <div className="min-h-screen bg-white p-4 dark:bg-zinc-950">
+    <div className="min-h-screen bg-white p-4 sm:p-6 dark:bg-zinc-950">
       <div className="mb-6 flex flex-col gap-4">
         <h1 className="text-3xl font-black text-zinc-900 dark:text-white">Browse</h1>
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">

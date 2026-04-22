@@ -315,11 +315,11 @@ const Discovery = () => {
         <AnimatePresence mode="wait">
           {activeTab === 'broadcast' && (
             <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-               <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-[3rem] border border-white/[0.05] relative overflow-hidden group">
+               <div className="bg-gradient-to-br from-zinc-900 to-black p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-white/[0.05] relative overflow-hidden group">
                   <div className="relative z-10">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">Live Campus Feed</h2>
-                    <p className="text-xs font-bold text-zinc-500 mb-8 uppercase tracking-widest leading-relaxed">Broadcast your energy to the university</p>
-                    <button onClick={() => setIsPosting(true)} className="w-full h-14 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
+                    <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter mb-1">Live Campus Feed</h2>
+                    <p className="text-[10px] md:text-xs font-bold text-zinc-500 mb-6 md:mb-8 uppercase tracking-widest leading-relaxed">Broadcast your energy to the university</p>
+                    <button onClick={() => setIsPosting(true)} className="w-full h-12 md:h-14 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
                       <Zap size={16} className="fill-black" /> Transmit Signal
                     </button>
                   </div>
@@ -365,14 +365,13 @@ const Discovery = () => {
                     { id: 'Coffee', icon: Coffee, color: 'text-amber-500', bg: 'bg-amber-500/5' },
                     { id: 'Party', icon: Music, color: 'text-rose-400', bg: 'bg-rose-400/5' },
                     { id: 'Library', icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-400/5' },
-                    { id: 'Incognito', icon: GhostIcon, color: 'text-zinc-400', bg: 'bg-zinc-400/5' },
-                  ].map((cat) => (
+                    { id: 'Incognito', icon: GhostIcon, color: 'text-zinc-400', bg: 'bg-                   ].map((cat) => (
                     <button 
                       key={cat.id} 
                       onClick={() => handleUpdateVibe(cat.id)}
-                      className={`relative p-8 rounded-[3rem] flex flex-col items-center justify-center border transition-all active:scale-95 group ${userVibe === cat.id ? 'bg-primary border-primary' : 'bg-zinc-900 border-white/[0.03]'}`}
+                      className={`relative p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] flex flex-col items-center justify-center border transition-all active:scale-95 group ${userVibe === cat.id ? 'bg-primary border-primary' : 'bg-zinc-900 border-white/[0.03]'}`}
                     >
-                       <cat.icon className={`mb-4 transition-transform group-hover:scale-125 ${userVibe === cat.id ? 'text-white' : cat.color}`} size={32} />
+                       <cat.icon className={`mb-4 transition-transform group-hover:scale-125 ${userVibe === cat.id ? 'text-white' : cat.color}`} size={28} />
                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${userVibe === cat.id ? 'text-white' : 'text-zinc-200'}`}>{cat.id}</span>
                        <span className={`text-[8px] font-bold ${userVibe === cat.id ? 'text-white/70' : 'text-zinc-600'}`}>
                           {vibeStats[cat.id] || 0} active
@@ -384,7 +383,7 @@ const Discovery = () => {
                <button 
                   onClick={handleRollDice} 
                   disabled={isRolling}
-                  className="w-full bg-primary p-12 rounded-[4rem] text-center shadow-2xl relative overflow-hidden group active:scale-95 transition-all"
+                  className="w-full bg-primary p-8 sm:p-12 rounded-[3rem] sm:rounded-[4rem] text-center shadow-2xl relative overflow-hidden group active:scale-95 transition-all"
                >
                   <motion.div animate={isRolling ? { rotate: 360 } : {}} transition={{ repeat: Infinity, duration: 0.5 }}>
                      <Dice5 size={60} className="mx-auto mb-4 text-white drop-shadow-[0_0_20px_white]" />
@@ -402,15 +401,15 @@ const Discovery = () => {
           {activeTab === 'quests' && (
             <motion.div key="quests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10 pb-10">
                {/* Editorial Noir Mastery Header */}
-               <div className="relative bg-zinc-900 rounded-[2rem] p-12 border border-white/[0.05] overflow-hidden group">
+               <div className="relative bg-zinc-900 rounded-[2rem] p-8 sm:p-12 border border-white/[0.05] overflow-hidden group">
                   <div className="relative z-10 flex flex-col items-center text-center">
                      <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500 mb-6 font-mono">
                         System Efficiency
                      </p>
                      
-                     <div className="relative mb-8">
-                        <h2 className="text-9xl font-black uppercase tracking-tighter leading-none text-white italic">
-                           <span className="text-zinc-700 font-mono text-3xl align-middle mr-4 not-italic tracking-normal">LVL</span>
+                     <div className="relative mb-6 sm:mb-8">
+                        <h2 className="text-5xl sm:text-6xl md:text-9xl font-black uppercase tracking-tighter leading-none text-white italic">
+                           <span className="text-zinc-700 font-mono text-xl md:text-3xl align-middle mr-2 md:mr-4 not-italic tracking-normal">LVL</span>
                            {Math.floor(vibePoints / 1000) + 1}
                         </h2>
                      </div>
@@ -431,7 +430,6 @@ const Discovery = () => {
                      </div>
                   </div>
                   
-                  {/* Subtle Geometric Decor */}
                   <div className="absolute top-0 right-0 p-8 text-white opacity-[0.02] pointer-events-none group-hover:opacity-[0.05] transition-opacity">
                      <Crown size={120} strokeWidth={1} />
                   </div>
@@ -447,15 +445,14 @@ const Discovery = () => {
 
           {activeTab === 'battles' && (
             <motion.div key="battles" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
-               {/* Classic Battle Arena Header */}
-               <div className="bg-white p-12 rounded-[4.5rem] text-black shadow-2xl relative overflow-hidden group">
+               <div className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[4.5rem] text-black shadow-2xl relative overflow-hidden group">
                   <div className="absolute -right-8 -bottom-8 opacity-10 group-hover:-rotate-12 transition-transform duration-700">
-                    <Zap size={160} className="text-zinc-500" fill="currentColor" />
+                    <Zap size={140} className="text-zinc-500" fill="currentColor" />
                   </div>
                   <div className="relative z-10">
                     <p className="text-[10px] font-black uppercase tracking-[0.4em] mb-3 text-zinc-400">Campus Debate</p>
-                    <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none mb-8">Poll Arena</h2>
-                    <button onClick={() => setIsPollPosting(true)} className="flex items-center gap-3 px-8 py-4 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:scale-105 active:scale-95 transition-all shadow-xl">
+                    <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none mb-6 md:mb-8">Poll Arena</h2>
+                    <button onClick={() => setIsPollPosting(true)} className="flex items-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:scale-105 active:scale-95 transition-all shadow-xl">
                       <Plus size={16} /> Start a Debate
                     </button>
                   </div>
@@ -485,7 +482,6 @@ const Discovery = () => {
                   )}
                </div>
 
-               {/* Dev Tool: Add Coins (One-time) */}
                {!userData?.claimedWelcomeBonus && (
                  <div className="flex justify-center pb-12">
                     <button 
@@ -507,13 +503,13 @@ const Discovery = () => {
                  { title: 'Global Map', price: 250, desc: 'See activity heatmap', icon: Map, color: 'text-emerald-400' },
                  { title: 'Broadcast Boost', price: 100, desc: 'Pin your broadcast signal', icon: Zap, color: 'text-primary' },
                ].map((item, i) => (
-                 <div key={i} className="bg-zinc-900 border border-white/[0.05] p-8 rounded-[3rem] flex items-center justify-between group">
-                    <div className="flex items-center gap-6">
-                       <div className="h-14 w-14 rounded-2xl bg-black flex items-center justify-center">
-                          <item.icon size={28} className={item.color} />
+                 <div key={i} className="bg-zinc-900 border border-white/[0.05] p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] flex items-center justify-between group">
+                    <div className="flex items-center gap-4 md:gap-6">
+                       <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-black flex items-center justify-center">
+                          <item.icon size={24} className={item.color} />
                        </div>
                        <div>
-                          <h4 className="text-lg font-black uppercase italic tracking-tight">{item.title}</h4>
+                          <h4 className="text-base md:text-lg font-black uppercase italic tracking-tight">{item.title}</h4>
                           <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{item.desc}</p>
                        </div>
                     </div>
@@ -526,7 +522,7 @@ const Discovery = () => {
                            toast.error('Insufficient UniCoins');
                          }
                        }}
-                       className="h-12 px-6 bg-white text-black rounded-2xl font-black text-xs hover:bg-primary hover:text-white transition-colors"
+                       className="h-10 md:h-12 px-4 md:px-6 bg-white text-black rounded-2xl font-black text-[10px] md:text-xs hover:bg-primary hover:text-white transition-colors"
                      >
                         {item.price}
                      </button>
@@ -577,20 +573,8 @@ const Discovery = () => {
         </Modal>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 bg-[#020202]/95 backdrop-blur-3xl border-t border-white/[0.03] flex items-center justify-around px-8">
-        {[
-          { icon: Compass, label: 'HUB', path: '/', active: true },
-          { icon: Search, label: 'FIND', path: '/search' },
-          { icon: Heart, label: 'MATCH', path: '/matches' },
-          { icon: MessageCircle, label: 'CHAT', path: '/chat' },
-          { icon: UserIcon, label: 'ME', path: '/profile' }
-        ].map((item, i) => (
-          <button key={i} onClick={() => navigate(item.path)} className={`flex flex-col items-center gap-1 transition-all ${item.active ? 'text-primary' : 'text-zinc-600'}`}>
-            <item.icon size={22} strokeWidth={item.active ? 2.5 : 2} />
-            <span className="text-[8px] font-black tracking-tighter uppercase">{item.label}</span>
-          </button>
-        ))}
-      </nav>
+      {/* Removed Redundant Navigation - Managed by AppLayout */}
+    </div>
     </div>
   );
 };

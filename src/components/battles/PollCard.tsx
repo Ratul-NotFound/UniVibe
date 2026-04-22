@@ -22,7 +22,7 @@ export const PollCard: React.FC<PollCardProps> = ({ poll, onVote, currentUser })
   const rightPercent = getPercentage(poll.right?.votes || 0);
 
   return (
-    <div className="bg-zinc-900/50 p-10 rounded-[4rem] border border-white/[0.03] relative group overflow-hidden transition-all hover:border-white/10 hover:bg-zinc-900">
+    <div className="bg-zinc-900/50 p-6 sm:p-10 rounded-[3rem] sm:rounded-[4rem] border border-white/[0.03] relative group overflow-hidden transition-all hover:border-white/10 hover:bg-zinc-900">
        <div className="relative z-10">
           <div className="flex justify-between items-center mb-10">
              <div className="px-5 py-2 bg-white/5 rounded-2xl text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] border border-white/[0.02]">
@@ -33,17 +33,17 @@ export const PollCard: React.FC<PollCardProps> = ({ poll, onVote, currentUser })
              </div>
           </div>
 
-          <h3 className="text-3xl font-black italic uppercase tracking-tighter text-center mb-12 px-4 leading-tight">
+          <h3 className="text-xl sm:text-3xl font-black italic uppercase tracking-tighter text-center mb-8 px-2 leading-tight">
             {poll.title}
           </h3>
 
-          <div className="flex items-center justify-center gap-10 relative mb-12">
+          <div className="flex items-center justify-center gap-4 sm:gap-10 relative mb-8 sm:mb-12">
              {/* Left Option */}
              <div className="flex-1 flex flex-col items-center gap-6">
                 <button 
                   onClick={() => !hasVoted && onVote('left')}
                   disabled={hasVoted}
-                  className={`h-28 w-28 rounded-full flex items-center justify-center text-5xl transition-all relative ${
+                  className={`h-20 w-20 sm:h-28 sm:w-28 rounded-full flex items-center justify-center text-3xl sm:text-5xl transition-all relative ${
                     hasVoted ? 'cursor-default' : 'hover:scale-110 active:scale-95 shadow-2xl shadow-primary/20'
                   } bg-primary/10 border-2 border-primary/20 text-white`}
                 >
@@ -60,7 +60,7 @@ export const PollCard: React.FC<PollCardProps> = ({ poll, onVote, currentUser })
              </div>
 
              {/* VS Divider */}
-             <div className="h-14 w-14 bg-black border-2 border-white/10 rounded-full flex items-center justify-center text-[11px] font-black italic shrink-0 z-10 shadow-xl shadow-black/50">
+             <div className="h-10 w-10 sm:h-14 sm:w-14 bg-black border-2 border-white/10 rounded-full flex items-center justify-center text-[9px] sm:text-[11px] font-black italic shrink-0 z-10 shadow-xl shadow-black/50">
                 VS
              </div>
 
@@ -69,7 +69,7 @@ export const PollCard: React.FC<PollCardProps> = ({ poll, onVote, currentUser })
                 <button 
                   onClick={() => !hasVoted && onVote('right')}
                   disabled={hasVoted}
-                  className={`h-28 w-28 rounded-full flex items-center justify-center text-5xl transition-all relative ${
+                  className={`h-20 w-20 sm:h-28 sm:w-28 rounded-full flex items-center justify-center text-3xl sm:text-5xl transition-all relative ${
                     hasVoted ? 'cursor-default' : 'hover:scale-110 active:scale-95 shadow-2xl shadow-amber-500/20'
                   } bg-amber-500/10 border-2 border-amber-500/20 text-white`}
                 >

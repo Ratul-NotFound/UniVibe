@@ -273,7 +273,7 @@ const ChatRoom = () => {
       </div>
 
       {/* Editorial Noir Input Area */}
-      <div className="border-t border-white/[0.03] bg-[#020202] p-6 pb-12">
+      <div className="border-t border-white/[0.03] bg-[#020202] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,24px))]">
         <form onSubmit={handleSend} className="flex items-center gap-3">
           <button type="button" className="h-12 w-12 flex items-center justify-center rounded-xl bg-zinc-900 border border-white/5 text-zinc-500 hover:text-white transition-colors">
             <Image size={20} />

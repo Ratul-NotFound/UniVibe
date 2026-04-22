@@ -54,7 +54,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative group p-6 rounded-[2.5rem] border backdrop-blur-3xl transition-all duration-500 hover:scale-[1.01] ${
+      className={`relative group p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border backdrop-blur-3xl transition-all duration-500 hover:scale-[1.01] ${
         signal.priority > 0 
           ? 'bg-gradient-to-br from-primary/10 via-zinc-900/40 to-primary/5 border-primary/40 shadow-[0_0_30px_rgba(var(--primary-rgb),0.1)]' 
           : 'bg-zinc-900/40 border-white/[0.03] hover:border-white/[0.08]'
@@ -103,14 +103,14 @@ export const SignalCard: React.FC<SignalCardProps> = ({
       </div>
 
       {/* Content */}
-      <div className="mb-6 pl-[52px]">
+      <div className="mb-6 pl-0 sm:pl-[52px]">
         <p className="text-sm text-zinc-200 font-medium leading-relaxed italic opacity-90 break-words">
           "{signal.content}"
         </p>
       </div>
 
       {/* Footer / Actions */}
-      <div className="flex items-center justify-between pl-[52px]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pl-0 sm:pl-[52px]">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 group/stat">
             <div className={`h-8 px-3 rounded-xl flex items-center gap-2 transition-colors ${isJoined ? 'bg-primary/20 text-primary' : 'bg-white/[0.03] text-zinc-500 hover:bg-white/[0.05]'}`}>

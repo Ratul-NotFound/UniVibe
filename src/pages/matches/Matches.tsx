@@ -170,16 +170,16 @@ const Matches = () => {
   const TabButton = ({ id, label, icon: Icon, count }: { id: typeof activeTab; label: string; icon: any; count?: number }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`relative flex flex-col items-center gap-2 px-6 py-4 rounded-xl transition-all duration-300 ${
+      className={`relative flex-1 flex flex-col items-center gap-2 px-2 py-4 rounded-xl transition-all duration-300 ${
         activeTab === id 
           ? 'text-black bg-white shadow-xl' 
           : 'text-zinc-600 hover:text-zinc-400'
       }`}
     >
       <Icon size={18} strokeWidth={activeTab === id ? 3 : 2} />
-      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{label}</span>
+      <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em]">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className={`absolute right-4 top-2 h-4 w-4 flex items-center justify-center rounded-full text-[8px] font-black ${activeTab === id ? 'bg-black text-white' : 'bg-primary text-white shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'}`}>
+        <span className={`absolute right-1 sm:right-4 top-2 h-4 w-4 flex items-center justify-center rounded-full text-[8px] font-black ${activeTab === id ? 'bg-black text-white' : 'bg-primary text-white shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'}`}>
           {count}
         </span>
       )}
@@ -189,16 +189,16 @@ const Matches = () => {
    return (
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#020202]/98 px-8 pt-12 pb-6 border-b border-white/[0.03]">
-        <div className="max-w-lg mx-auto flex items-center justify-between mb-10">
-           <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Synergy Engine</h1>
-           <div className="h-12 w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
+      <header className="sticky top-0 z-50 bg-[#020202]/98 px-6 sm:px-8 pt-8 sm:pt-12 pb-6 border-b border-white/[0.03]">
+        <div className="max-w-lg mx-auto flex items-center justify-between mb-8 sm:mb-10">
+           <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Synergy Engine</h1>
+           <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
               <Filter size={18} />
            </div>
         </div>
 
         {/* Editorial Tab Navigation */}
-        <div className="max-w-lg mx-auto bg-zinc-900/50 p-1.5 rounded-[2rem] border border-white/[0.05] flex justify-around shadow-xl">
+        <div className="max-w-lg mx-auto bg-zinc-900/50 p-1.5 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.05] flex justify-around shadow-xl overflow-hidden">
            <TabButton id="discover" label="Discover" icon={Compass} />
            <TabButton id="mutual" label="Circle" icon={Users} count={matches.length} />
            <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
@@ -206,7 +206,7 @@ const Matches = () => {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-8 pt-10 pb-32">
+      <div className="max-w-lg mx-auto px-6 sm:px-8 pt-8 sm:pt-10 pb-32">
         <AnimatePresence mode="wait">
           {activeTab === 'discover' && (
             <motion.div
@@ -276,7 +276,7 @@ const Matches = () => {
                   {[1, 2, 3].map(i => <div key={i} className="h-20 animate-pulse rounded-[1.5rem] bg-zinc-900/50" />)}
                 </div>
               ) : filteredMatches.length > 0 ? (
-                <div className="bg-zinc-950/40 backdrop-blur-2xl rounded-[3rem] border border-white/5 p-8">
+                <div className="bg-zinc-950/40 backdrop-blur-2xl rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8">
                    {filteredMatches.map(match => (
                     <MatchItem 
                       key={match.id} 

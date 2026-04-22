@@ -220,7 +220,7 @@ const OnboardingWizard = () => {
   const prevStep = () => setStep(s => s - 1);
 
   return (
-    <div className="min-h-screen bg-zinc-50 p-4 dark:bg-zinc-950">
+    <div className="min-h-screen bg-zinc-50 p-4 py-8 sm:py-12 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl pt-12">
         <div className="mb-8 flex items-center justify-between px-4">
           <div className="flex gap-2">
@@ -302,12 +302,12 @@ const OnboardingWizard = () => {
                   {formData.gender && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Choose an avatar</label>
-                      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                         {avatarOptions.map((avatar) => (
                           <button
                             key={avatar}
                             onClick={() => updateFormData({ photoURL: avatar })}
-                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${formData.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                            className={`h-16 w-16 mx-auto shrink-0 overflow-hidden rounded-full border-2 transition-all ${formData.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
                           >
                             <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
                           </button>

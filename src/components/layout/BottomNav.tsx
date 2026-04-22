@@ -18,7 +18,7 @@ const BottomNav = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-20 items-center justify-around border-t border-zinc-100 bg-white/80 pb-4 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/80">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-20 items-center justify-around border-t border-zinc-100 bg-white/80 pb-[env(safe-area-inset-bottom,16px)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/80">
       {navItems.map(({ icon: Icon, path, label }) => (
         <NavLink
           key={path}
@@ -39,7 +39,7 @@ const BottomNav = () => {
               <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider">
+          <span className="text-[11px] font-black uppercase tracking-wider">
             {label}
           </span>
         </NavLink>

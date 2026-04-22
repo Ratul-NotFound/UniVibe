@@ -56,8 +56,8 @@ const AdminReports = () => {
                  <div className="absolute left-0 top-0 h-full w-1 bg-amber-500" />
                )}
                
-               <div className="flex items-start justify-between">
-                 <div className="flex gap-4">
+               <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                 <div className="flex gap-3 sm:gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 dark:bg-zinc-800">
                        <Flag size={20} className={report.status === 'pending' ? 'text-amber-500' : 'text-zinc-400'} />
                     </div>
@@ -79,22 +79,22 @@ const AdminReports = () => {
                         </div>
                       </div>
                     </div>
-                 </div>
+               </div>
 
-                 <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleStatusUpdate(report.id, 'resolved')}
-                      disabled={report.status === 'resolved'}
-                    >
-                      <CheckCircle size={16} className="mr-2" />
-                      Resolve
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-danger">
-                      <Trash2 size={16} />
-                    </Button>
-                 </div>
+               <div className="mt-6 flex flex-wrap gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1 sm:flex-initial text-[10px] font-black uppercase tracking-widest"
+                    onClick={() => handleStatusUpdate(report.id, 'resolved')}
+                    disabled={report.status === 'resolved'}
+                  >
+                    <CheckCircle size={14} className="mr-2" />
+                    Resolve
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-9 w-9 text-zinc-400 hover:text-danger">
+                    <Trash2 size={16} />
+                  </Button>
                </div>
             </Card>
           ))

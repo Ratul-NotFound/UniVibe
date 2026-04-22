@@ -69,7 +69,8 @@ const AdminUsers = () => {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[600px] md:min-w-full">
           <thead className="border-b border-zinc-100 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
             <tr>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-zinc-400">User</th>
@@ -132,7 +133,8 @@ const AdminUsers = () => {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </Card>
     </div>
   );

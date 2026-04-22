@@ -14,7 +14,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({ mission, onAccept }) => {
   const progress = (mission.progress / mission.total) * 100;
 
   return (
-    <div className={`relative bg-zinc-900 border border-white/[0.05] rounded-[1.5rem] p-6 transition-all duration-300 group ${
+    <div className={`relative bg-zinc-900 border border-white/[0.05] rounded-[1.5rem] p-4 sm:p-6 transition-all duration-300 group ${
       isActive ? 'border-primary/20' : 'hover:border-white/20'
     }`}>
        <div className="flex justify-between items-start mb-6">

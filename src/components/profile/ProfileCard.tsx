@@ -58,7 +58,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
           <div className="flex items-end justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-3xl font-black tracking-tight">
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight">
                   {user.name}{showAge && age ? `, ${age}` : ''}
                 </h3>
                 <CheckCircle size={18} className="fill-emerald-500/20 text-emerald-500" />
@@ -91,7 +91,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className }
       </div>
 
       {/* Content Area */}
-      <div className="p-5 pb-8">
+      <div className="p-4 sm:p-5 pb-8">
         <div className="flex flex-wrap items-center gap-2">
           {user.lookingFor && (
             <span className="mb-2 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary dark:bg-primary/20">

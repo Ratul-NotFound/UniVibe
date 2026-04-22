@@ -116,7 +116,7 @@ const ChatListItem = ({ match, onAvatarClick }: { match: any; onAvatarClick: (us
   return (
     <div 
       onClick={() => navigate(`/chat/${match.chatId}`)}
-      className="flex cursor-pointer items-center gap-5 p-6 border border-white/[0.02] bg-zinc-900/20 hover:bg-zinc-900 transition-all group"
+      className="flex cursor-pointer items-center gap-4 sm:gap-5 p-4 sm:p-6 border border-white/[0.02] bg-zinc-900/20 hover:bg-zinc-900 transition-all group"
     >
       <div 
         className="relative"
@@ -305,10 +305,10 @@ const ChatList = () => {
   return (
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
       {/* Editorial Header */}
-      <div className="px-8 pt-12 pb-8 border-b border-white/[0.03]">
-        <div className="flex items-center justify-between mb-10">
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Inbox</h1>
-          <div className="h-12 w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
+      <div className="px-6 sm:px-8 pt-8 sm:pt-12 pb-8 border-b border-white/[0.03]">
+        <div className="flex items-center justify-between mb-8 sm:mb-10">
+          <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Inbox</h1>
+          <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
              <MessageCircle size={18} />
           </div>
         </div>
@@ -324,7 +324,7 @@ const ChatList = () => {
             )}
           </div>
 
-          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-6">
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar pb-6">
             {noteCards.map((card) => {
               return (
                 <button

@@ -341,12 +341,12 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-zinc-50 pb-24 dark:bg-zinc-950">
       {/* Header Profile Section */}
-      <div className="relative overflow-hidden bg-white px-6 pt-16 pb-10 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/50">
+      <div className="relative overflow-hidden bg-white px-4 sm:px-6 pt-12 sm:pt-16 pb-8 sm:pb-10 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/50">
         {/* Abstract Background Decoration */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-0 left-0 -ml-16 -mb-16 h-48 w-48 rounded-full bg-secondary/5 blur-3xl" />
 
-        <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:gap-8">
+        <div className="relative flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:gap-8">
           {/* Avatar Container with Premium Glow */}
           <div className="group relative">
             <div className="absolute -inset-1.5 animate-pulse rounded-full bg-gradient-to-tr from-primary via-secondary to-primary opacity-20 blur-md group-hover:opacity-40 transition-opacity" />
@@ -477,12 +477,12 @@ const Profile = () => {
                 {profileForm.gender && (
                   <div>
                     <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
-                    <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                       {avatarOptions.map((avatar) => (
                         <button
                           key={avatar}
                           onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
-                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                          className={`h-16 w-16 mx-auto shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
                         >
                           <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
                         </button>
