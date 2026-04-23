@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Heart, MessageCircle, User } from 'lucide-react';
+import { Home, Search, Heart, MessageCircle, User, Users } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -12,7 +12,7 @@ const BottomNav = () => {
   const navItems = [
     { icon: Home, path: '/', label: 'Home' },
     { icon: Search, path: '/search', label: 'Search' },
-    { icon: Heart, path: '/matches', label: 'Matches' },
+    { icon: Users, path: '/matches', label: 'Circle' },
     { icon: MessageCircle, path: '/chat', label: 'Inbox' },
     { icon: User, path: '/profile', label: 'Profile' },
   ];

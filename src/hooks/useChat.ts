@@ -8,9 +8,11 @@ export interface Message {
   senderId: string;
   content: string;
   timestamp: number;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'gif' | 'signal_share';
   readBy?: Record<string, boolean>;
   reactions?: Record<string, string>; // uid -> emoji
+  signalId?: string;
+  signalCategory?: string;
 }
 
 export const useChat = (chatId: string | undefined) => {
@@ -62,7 +64,7 @@ export const useChat = (chatId: string | undefined) => {
     };
   }, [chatId, user]);
 
-  const sendMessage = async (content: string, type: 'text' | 'image' = 'text') => {
+  const sendMessage = async (content: string, type: 'text' | 'image' | 'gif' | 'signal_share' = 'text') => {
     if (!chatId || !user || !content.trim()) return;
 
     const messagesRef = ref(rtdb, `chats/${chatId}/messages`);

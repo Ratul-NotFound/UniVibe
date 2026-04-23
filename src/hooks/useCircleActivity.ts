@@ -74,12 +74,16 @@ export const postCircleActivity = async (
       expiresAt,
     };
 
-    // 2. Fan-out to each friend's feed
-    const writes = matchesSnap.docs.map(matchDoc => {
+    // 2. Fan-out to friends + own feed
+    const targetUids = new Set([currentUser.uid]);
+    matchesSnap.docs.forEach(matchDoc => {
       const data = matchDoc.data();
       const friendUid = data.users.find((uid: string) => uid !== currentUser.uid);
-      if (!friendUid) return Promise.resolve();
-      return addDoc(collection(db, 'circle_feed', friendUid, 'items'), item);
+      if (friendUid) targetUids.add(friendUid);
+    });
+
+    const writes = Array.from(targetUids).map(targetId => {
+      return addDoc(collection(db, 'circle_feed', targetId, 'items'), item);
     });
 
     await Promise.allSettled(writes);

@@ -6,7 +6,7 @@ import {
   Star, ChevronRight, Trophy, Sparkles, Compass, Search, Heart, 
   MessageCircle, User as UserIcon, Zap, Crown, Map
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGamification } from '@/hooks/useGamification';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -18,7 +18,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db, rtdb } from '@/lib/firebase';
-import { ref, set as rtdbSet, onValue, off } from 'firebase/database';
+import { ref, set as rtdbSet, onValue, off, runTransaction } from 'firebase/database';
 import { useBroadcasts, SIGNAL_THEMES } from '@/hooks/useBroadcasts';
 import { SignalCard } from '@/components/broadcast/SignalCard';
 import { BroadcasterComposer } from '@/components/broadcast/BroadcasterComposer';
@@ -45,6 +45,8 @@ const Discovery = () => {
     updateMissionProgress, acceptMission 
   } = useGamification();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetSignalId = searchParams.get('signalId');
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabType>('broadcast');
@@ -138,6 +140,22 @@ const Discovery = () => {
     };
   }, [user]);
 
+  // Handle signal deep linking
+  useEffect(() => {
+    if (targetSignalId && broadcasts.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`signal-${targetSignalId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-black');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-black');
+          }, 4000);
+        }
+      }, 500);
+    }
+  }, [targetSignalId, broadcasts]);
+
   // Mission Initializer
   useEffect(() => {
     if (!user || !isEligibleDiuSession(user)) {
@@ -175,16 +193,8 @@ const Discovery = () => {
   // Handlers for Broadcast 3.0
   const handlePost = async (data: any) => {
     try {
-      const signalId = await postSignal(data);
+      await postSignal(data);
       toast.success('Signal Transmitted!', { icon: '📡' });
-      // Fan-out to circle feed
-      if (user && !data.isAnonymous) {
-        postCircleActivity(user, userData, {
-          type: 'signal',
-          content: data.content?.slice(0, 120) || '',
-          meta: { category: data.category, signalId: signalId || undefined },
-        });
-      }
     } catch (err) {
       toast.error('Transmission failed');
     }
@@ -209,16 +219,19 @@ const Discovery = () => {
       return;
     }
     try {
-      // Write to RTDB presence node (has rules: auth.uid === $uid)
+      // Write to RTDB presence node
       if (rtdb) {
         const prevVibe = userVibe;
         await rtdbSet(ref(rtdb, `presence/${user.uid}/vibe`), vibe);
         await rtdbSet(ref(rtdb, `presence/${user.uid}/name`), userData?.name || 'Student');
         await rtdbSet(ref(rtdb, `presence/${user.uid}/photoURL`), userData?.photoURL || null);
-        // Update global vibe stats
-        await rtdbSet(ref(rtdb, `vibeStats/${vibe}`), (vibeStats[vibe] || 0) + 1);
-        if (prevVibe && prevVibe !== vibe) {
-          await rtdbSet(ref(rtdb, `vibeStats/${prevVibe}`), Math.max(0, (vibeStats[prevVibe] || 1) - 1));
+        
+        // Atomic stats update
+        if (vibe !== prevVibe) {
+          runTransaction(ref(rtdb, `vibeStats/${vibe}`), (current) => (current || 0) + 1);
+          if (prevVibe) {
+            runTransaction(ref(rtdb, `vibeStats/${prevVibe}`), (current) => Math.max(0, (current || 0) - 1));
+          }
         }
       }
       // Also try Firestore silently
@@ -276,15 +289,6 @@ const Discovery = () => {
 
   const handleCreatePoll = async (data: any) => {
     await createPoll(data);
-    await updateMissionProgress('q3');
-    // Fan-out to circle feed
-    if (user) {
-      postCircleActivity(user, userData, {
-        type: 'poll',
-        content: `started a debate: "${data.title}"`,
-        meta: { pollTitle: data.title, category: data.category },
-      });
-    }
   };
 
   const handleSeed = async () => {
@@ -374,14 +378,15 @@ const Discovery = () => {
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {broadcasts.length > 0 ? (
                     broadcasts.map((p) => (
-                      <SignalCard 
-                        key={p.id}
-                        signal={p}
-                        currentUser={user}
-                        onJoin={handleJoin}
-                        onOpenPortal={(id) => setActivePortalId(id)}
-                        onIgnite={handleIgnite}
-                      />
+                      <div key={p.id} id={`signal-${p.id}`}>
+                        <SignalCard 
+                          signal={p}
+                          currentUser={user}
+                          onJoin={handleJoin}
+                          onOpenPortal={(id) => setActivePortalId(id)}
+                          onIgnite={handleIgnite}
+                        />
+                      </div>
                     ))
                   ) : (
                     <div className="col-span-full py-20 text-center">
@@ -394,9 +399,16 @@ const Discovery = () => {
 
           {activeTab === 'vibe-check' && (
             <motion.div key="vibe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-               <div className="text-center">
+                <div className="text-center">
                   <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-1">Vibe Radar</h2>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Select your activity to join the hub</p>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Select your activity to join the hub</p>
+                  
+                  {userVibe && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full mb-6 animate-pulse">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary">Live: {userVibe}</span>
+                    </div>
+                  )}
                </div>
 
                <div className="grid grid-cols-2 gap-3">

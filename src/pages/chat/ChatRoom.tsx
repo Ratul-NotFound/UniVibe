@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
 import { ChevronLeft, Send, Image, MoreVertical, Sparkles, User, Radio, Trash2, Smile } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createAppNotification } from '@/lib/notifications';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
 import { Modal } from '@/components/ui/Modal';
@@ -13,7 +13,7 @@ import ProfileCard from '@/components/profile/ProfileCard';
 
 const ChatRoom = () => {
   const { chatId } = useParams();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const navigate = useNavigate();
 
   const [inputText, setInputText] = useState('');
@@ -28,6 +28,54 @@ const ChatRoom = () => {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [lastTap, setLastTap] = useState(0);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearch, setGifSearch] = useState('');
+  const [trendingGifs, setTrendingGifs] = useState<any[]>([]);
+  const [gifError, setGifError] = useState(false);
+
+  // Load trending GIFs
+  useEffect(() => {
+    if (showGifPicker && trendingGifs.length === 0) {
+      setGifError(false);
+      fetch(`https://api.giphy.com/v1/gifs/trending?api_key=5FmPS3t8fsNeruRIkbeHhZO0VZehe3BS&limit=12`)
+        .then(res => {
+          if (!res.ok) throw new Error('API restricted');
+          return res.json();
+        })
+        .then(data => setTrendingGifs(data.data || []))
+        .catch(err => {
+          console.error('Giphy Fetch Error:', err);
+          setGifError(true);
+        });
+    }
+  }, [showGifPicker, trendingGifs.length]);
+
+  const handleGifSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!gifSearch.trim()) return;
+    setGifError(false);
+    try {
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?q=${gifSearch}&api_key=5FmPS3t8fsNeruRIkbeHhZO0VZehe3BS&limit=12`);
+      if (!res.ok) throw new Error('API restricted');
+      const data = await res.json();
+      setTrendingGifs(data.data || []);
+    } catch (err) {
+      console.error('Giphy Search Error:', err);
+      setGifError(true);
+    }
+  };
+
+  const sendGif = (gifUrl: string) => {
+    sendMessage(gifUrl, 'gif');
+    setShowGifPicker(false);
+  };
+
+  const quickEmojis = [
+    '❤️', '🔥', '😂', '💯', '👍', '🙌', '✨', '🤩', '😎', '🤫',
+    '🎓', '📚', '📝', '💻', '🏫', '🎒', '🍕', '🍔', '☕', '🥤',
+    '🎸', '🎮', '🏀', '⚽', '🚌', '📍', '🌈', '🌙', '🍃', '✨'
+  ];
 
   useEffect(() => {
     if (!chatId || !user) return;
@@ -152,7 +200,7 @@ const ChatRoom = () => {
           className="h-12 w-12 cursor-pointer overflow-hidden rounded-[1.2rem] bg-zinc-800 border border-white/5"
         >
           {recipient?.photoURL ? (
-             <img src={recipient.photoURL} className="h-full w-full object-cover grayscale brightness-75 transition-all hover:grayscale-0 hover:brightness-100" />
+             <img src={recipient.photoURL} className="h-full w-full object-cover transition-all" />
           ) : (
              <div className="flex h-full w-full items-center justify-center text-zinc-700">
                 <User size={20} />
@@ -214,8 +262,25 @@ const ChatRoom = () => {
           };
 
           return (
-            <div key={msg.id} className={`flex items-end gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[80%]`}>
+            <div key={msg.id} className={`flex items-end gap-2.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+              {/* Avatar */}
+              <div className="h-8 w-8 rounded-xl overflow-hidden bg-zinc-800 border border-white/5 flex-shrink-0 mb-1">
+                {isOwn ? (
+                  userData?.photoURL ? (
+                    <img src={userData.photoURL} className="h-full w-full object-cover opacity-90" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-primary italic">{userData?.name?.[0]}</div>
+                  )
+                ) : (
+                  recipient?.photoURL ? (
+                    <img src={recipient.photoURL} className="h-full w-full object-cover opacity-90" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-zinc-600 italic">{recipient?.name?.[0]}</div>
+                  )
+                )}
+              </div>
+
+              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -236,7 +301,28 @@ const ChatRoom = () => {
                         : 'bg-white text-black rounded-[1.2rem] rounded-bl-none'
                     }`}
                   >
-                    {msg.content}
+                    {msg.type === 'gif' ? (
+                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-900">
+                        <img src={msg.content} alt="GIF" className="w-full h-auto max-h-64 object-cover" />
+                      </div>
+                    ) : msg.type === 'signal_share' ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                           <Radio size={14} className="text-primary" />
+                           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Campus Signal Shared</span>
+                        </div>
+                        <p className="text-[13px] leading-relaxed italic opacity-90">{msg.content}</p>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/?signalId=${msg.signalId}`);
+                          }}
+                          className="w-full py-2.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-primary hover:text-white transition-all shadow-xl shadow-white/5"
+                        >
+                          View Pulse Hub
+                        </button>
+                      </div>
+                    ) : msg.content}
                     
                     {/* Reaction Badges (Editorial Style) */}
                     {reactions.length > 0 && (
@@ -272,12 +358,98 @@ const ChatRoom = () => {
         )}
       </div>
 
+      {/* Pickers (Moved outside form to avoid nesting) */}
+      <AnimatePresence>
+        {showGifPicker && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute bottom-32 left-6 w-72 max-h-96 overflow-hidden p-4 bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl z-50 flex flex-col no-scrollbar"
+          >
+            <div className="mb-4">
+              <input 
+                type="text"
+                placeholder="Search GIPHY..."
+                className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2 text-[10px] font-medium outline-none focus:border-primary transition-all text-white"
+                value={gifSearch}
+                onChange={e => setGifSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGifSearch(new Event('submit') as any);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 gap-2 pb-2 min-h-[200px]">
+              {gifError ? (
+                <div className="col-span-full flex flex-col items-center justify-center p-8 text-center bg-black/20 rounded-2xl border border-white/5">
+                  <Sparkles size={24} className="text-zinc-600 mb-3 opacity-20" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Connection Restricted</p>
+                  <p className="text-[8px] font-bold text-zinc-700 uppercase tracking-tighter">Check your GIPHY API configuration</p>
+                </div>
+              ) : trendingGifs.map(gif => (
+                <button
+                  key={gif.id}
+                  type="button"
+                  onClick={() => sendGif(gif.images.fixed_height.url)}
+                  className="rounded-lg overflow-hidden h-24 bg-zinc-800 transition-all hover:opacity-80 active:scale-95"
+                >
+                  <img src={gif.images.fixed_height_small.url} className="h-full w-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEmojiPicker && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute bottom-32 left-6 w-64 max-h-72 overflow-y-auto p-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl z-50 no-scrollbar"
+          >
+            <div className="grid grid-cols-5 gap-2 pb-1">
+              {quickEmojis.map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => {
+                    setInputText(prev => prev + emoji);
+                    setShowEmojiPicker(false);
+                  }}
+                  className="h-10 flex items-center justify-center rounded-lg hover:bg-white/10 text-xl transition-all active:scale-90"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Editorial Noir Input Area */}
-      <div className="border-t border-white/[0.03] bg-[#020202] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,24px))]">
+      <div className="border-t border-white/[0.03] bg-[#020202] p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,24px))] relative">
         <form onSubmit={handleSend} className="flex items-center gap-3">
-          <button type="button" className="h-12 w-12 flex items-center justify-center rounded-xl bg-zinc-900 border border-white/5 text-zinc-500 hover:text-white transition-colors">
-            <Image size={20} />
+          <button 
+            type="button" 
+            onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
+            className={`h-12 px-3 flex items-center justify-center rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest ${showGifPicker ? 'bg-white text-black border-white shadow-xl' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-white'}`}
+          >
+            GIF
           </button>
+
+          <button 
+            type="button" 
+            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
+            className={`h-12 w-12 flex items-center justify-center rounded-xl border transition-all ${showEmojiPicker ? 'bg-white text-black border-white shadow-xl' : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-white'}`}
+          >
+            <Smile size={20} />
+          </button>
+
           <div className="relative flex-1">
             <input
               type="text"

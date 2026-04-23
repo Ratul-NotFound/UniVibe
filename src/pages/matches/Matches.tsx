@@ -190,8 +190,8 @@ const Matches = () => {
         {/* Tab Navigation */}
         <div className="max-w-4xl mx-auto">
           <div className="w-full bg-zinc-900/60 p-1 rounded-xl border border-white/[0.05] flex gap-1">
-           <TabButton id="activity" label="Activity" icon={Activity} count={circleItems.length} />
-           <TabButton id="mutual" label="Circle" icon={Users} count={matches.length} />
+           <TabButton id="activity" label="Radar" icon={Activity} count={circleItems.length} />
+           <TabButton id="mutual" label="Friends" icon={Users} count={matches.length} />
            <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
            <TabButton id="sent" label="Pending" icon={Zap} count={outgoingRequests.length} />
         </div>

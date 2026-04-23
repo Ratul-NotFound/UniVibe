@@ -9,6 +9,7 @@ export interface PortalMessage {
   senderName: string;
   senderPhotoURL: string | null;
   content: string;
+  type?: 'text' | 'gif';
   timestamp: number;
 }
 
@@ -61,7 +62,7 @@ export const usePortals = (portalId: string | undefined) => {
     };
   }, [portalId, user, userData]);
 
-  const sendPortalMessage = async (content: string) => {
+  const sendPortalMessage = async (content: string, type: 'text' | 'gif' = 'text') => {
     if (!portalId || !user || !content.trim()) return;
 
     const messagesRef = ref(rtdb, `portals/${portalId}/messages`);
@@ -72,6 +73,7 @@ export const usePortals = (portalId: string | undefined) => {
       senderName: userData?.name || 'DIU Student',
       senderPhotoURL: userData?.photoURL || null,
       content,
+      type,
       timestamp: Date.now()
     });
   };

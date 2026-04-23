@@ -34,9 +34,11 @@ export interface PollBattle {
   status: 'active' | 'ended';
 }
 
+import { postCircleActivity } from './useCircleActivity';
+
 export const usePolls = () => {
   const { user, userData } = useAuth();
-  const { updateMissionProgress } = useGamification();
+  const { updateMissionProgress, addVibePoints } = useGamification();
 
   const createPoll = async (data: {
     title: string;
@@ -76,7 +78,17 @@ export const usePolls = () => {
       };
 
       const docRef = await addDoc(collection(db, 'battles'), pollData);
-      await updateMissionProgress('q2');
+      
+      // Post to circle activity
+      await postCircleActivity(user, userData, {
+        type: 'poll',
+        content: `started a debate: "${data.title}"`,
+        meta: { pollTitle: data.title, category: data.category },
+      });
+
+      await addVibePoints(20);
+      await updateMissionProgress('q3'); // Battle Master mission
+      
       toast.success('Poll Arena is Live! 🏟️');
       return docRef.id;
     } catch (error) {

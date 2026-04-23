@@ -46,6 +46,8 @@ const ShareModal: React.FC<{
         senderId: user.uid,
         content: `📡 Shared a Signal: "${signal.content?.slice(0, 100)}${signal.content?.length > 100 ? '…' : ''}"`,
         type: 'signal_share',
+        signalId: signal.id,
+        signalCategory: signal.category,
         timestamp: Date.now(),
         readBy: { [user.uid]: true },
       });
