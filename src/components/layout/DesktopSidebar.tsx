@@ -17,11 +17,11 @@ const DesktopSidebar = () => {
     const { user, userData } = useAuth();
 
   const navItems = [
-    { icon: Home, path: '/', label: 'Frequency', desc: 'Main Discovery' },
-    { icon: Search, path: '/search', label: 'Signal', desc: 'Search Platform' },
+    { icon: Home, path: '/', label: 'Home', desc: 'Main Discovery' },
+    { icon: Search, path: '/search', label: 'Search', desc: 'Search Platform' },
     { icon: Heart, path: '/matches', label: 'Circle', desc: 'Your Connections' },
-    { icon: MessageCircle, path: '/chat', label: 'Encrypted', desc: 'Private Inbox' },
-    { icon: User, path: '/profile', label: 'Identity', desc: 'Personal Profile' },
+    { icon: MessageCircle, path: '/chat', label: 'Inbox', desc: 'Private Inbox' },
+    { icon: User, path: '/profile', label: 'Profile', desc: 'Personal Profile' },
   ];
 
   return (

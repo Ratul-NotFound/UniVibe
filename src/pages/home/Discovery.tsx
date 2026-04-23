@@ -29,6 +29,7 @@ import { PollCard } from '@/components/battles/PollCard';
 import { PollComposer } from '@/components/battles/PollComposer';
 import { LevelProgress } from '@/components/gamification/LevelProgress';
 import { QuestCard } from '@/components/gamification/QuestCard';
+import { postCircleActivity } from '@/hooks/useCircleActivity';
 
 type TabType = 'broadcast' | 'battles' | 'quests' | 'vibe-check' | 'shop';
 
@@ -174,8 +175,16 @@ const Discovery = () => {
   // Handlers for Broadcast 3.0
   const handlePost = async (data: any) => {
     try {
-      await postSignal(data);
+      const signalId = await postSignal(data);
       toast.success('Signal Transmitted!', { icon: '📡' });
+      // Fan-out to circle feed
+      if (user && !data.isAnonymous) {
+        postCircleActivity(user, userData, {
+          type: 'signal',
+          content: data.content?.slice(0, 120) || '',
+          meta: { category: data.category, signalId: signalId || undefined },
+        });
+      }
     } catch (err) {
       toast.error('Transmission failed');
     }
@@ -218,6 +227,12 @@ const Discovery = () => {
       setUserVibe(vibe);
       await updateMissionProgress('f1');
       toast.success(`Vibe set: ${vibe} 📡`, { icon: '✅' });
+      // Fan-out vibe to circle feed
+      postCircleActivity(user, userData, {
+        type: 'vibe',
+        content: `set their vibe to ${vibe}`,
+        meta: { vibe },
+      });
     } catch (e: any) {
       console.error('Vibe update failed:', e);
       toast.error(`Vibe update failed: ${e?.message || 'check database rules'}`);
@@ -261,7 +276,15 @@ const Discovery = () => {
 
   const handleCreatePoll = async (data: any) => {
     await createPoll(data);
-    await updateMissionProgress('q3'); // Battle Master
+    await updateMissionProgress('q3');
+    // Fan-out to circle feed
+    if (user) {
+      postCircleActivity(user, userData, {
+        type: 'poll',
+        content: `started a debate: "${data.title}"`,
+        meta: { pollTitle: data.title, category: data.category },
+      });
+    }
   };
 
   const handleSeed = async () => {

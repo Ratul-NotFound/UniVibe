@@ -9,7 +9,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
 import { 
   MessageCircle, Heart, ChevronRight, Mail, X, 
-  Search, Sparkles, Filter, Users, Zap, Compass, Activity, Radio
+  Search, Filter, Users, Zap, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -18,13 +18,12 @@ import ProfileCard from '@/components/profile/ProfileCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/Input';
 import { usePresenceStatus } from '@/hooks/usePresenceStatus';
-import { DiscoveryCard } from '@/components/matches/DiscoveryCard';
-import { calculateMatchScore } from '@/lib/matchAlgorithm';
-import { useSocial } from '@/hooks/useSocial';
-import { useNotes } from '@/hooks/useNotes';
+
 import { NotesRail } from '@/components/social/NotesRail';
+import { useNotes } from '@/hooks/useNotes';
 import { rtdb } from '@/lib/firebase';
 import { ref, onValue, off } from 'firebase/database';
+import { useCircleActivity } from '@/hooks/useCircleActivity';
 
 const PresenceDot = ({ isOnline, className = "" }: { isOnline: boolean; className?: string }) => {
   if (!isOnline) return null;
@@ -107,14 +106,14 @@ const Matches = () => {
     cancelRequest,
   } = useMatches();
   const { user, userData } = useAuth();
-  const { connect } = useSocial();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'discover' | 'mutual' | 'incoming' | 'sent'>('discover');
+  const [activeTab, setActiveTab] = useState<'activity' | 'mutual' | 'incoming' | 'sent'>('activity');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
   const [activeNoteUid, setActiveNoteUid] = useState<string | null>(null);
   const { notes, myNote } = useNotes();
+  const { items: circleItems, loading: circleLoading } = useCircleActivity();
   
   // Friends' live vibes from RTDB
   const [friendVibes, setFriendVibes] = useState<Record<string, { vibe: string; name: string; photoURL: string | null; isOnline?: boolean }>>({});
@@ -150,58 +149,6 @@ const Matches = () => {
     return () => listeners.forEach(fn => fn());
   }, [matches]);
 
-  // Discovery State
-  const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
-  const [loadingDiscovery, setLoadingDiscovery] = useState(true);
-
-  // Fetch Potential Matches
-  useEffect(() => {
-    if (!user || activeTab !== 'discover') return;
-    
-    const fetchDiscovery = async () => {
-      setLoadingDiscovery(true);
-      try {
-        const q = query(collection(db, 'users'), limit(50));
-        const snap = await getDocs(q);
-        
-        // Filter out existing matches and the user themselves
-        const existingIds = new Set([
-          user.uid,
-          ...matches.map(m => m.otherUserId),
-          ...incomingRequests.map(r => r.fromUid),
-          ...outgoingRequests.map(r => r.toUid)
-        ]);
-
-        const filtered = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(u => !existingIds.has(u.id))
-          .map(u => ({
-            ...u,
-            synergyScore: calculateMatchScore(userData || {}, u).score || 75
-          }))
-          .sort((a, b) => b.synergyScore - a.synergyScore)
-          .slice(0, 10);
-
-        setDiscoveryUsers(filtered);
-      } catch (err) {
-        console.error('Discovery fetch error:', err);
-      } finally {
-        setLoadingDiscovery(false);
-      }
-    };
-
-    fetchDiscovery();
-  }, [user, activeTab, matches.length]);
-
-  const handleConnect = async (uid: string) => {
-    try {
-      await connect({ id: uid });
-      toast.success('Spark Transmitted!', { icon: '✨' });
-    } catch (err) {
-      toast.error('Could not transmit spark.');
-    }
-  };
-
   const filteredMatches = matches.filter(m => {
     const name = (m.otherUser?.name || '').toLowerCase();
     return name.includes(searchTerm.toLowerCase());
@@ -210,16 +157,16 @@ const Matches = () => {
   const TabButton = ({ id, label, icon: Icon, count }: { id: typeof activeTab; label: string; icon: any; count?: number }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`relative flex-1 flex flex-col items-center gap-2 px-2 py-4 rounded-xl transition-all duration-300 ${
+      className={`relative flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 px-2 lg:px-4 py-3 lg:py-2.5 rounded-xl transition-all duration-200 ${
         activeTab === id 
-          ? 'text-white bg-zinc-800 shadow-lg border border-white/[0.08]' 
-          : 'text-zinc-600 hover:text-zinc-400'
+          ? 'text-white bg-zinc-800 shadow-md border border-white/[0.08]' 
+          : 'text-zinc-500 hover:text-zinc-300'
       }`}
     >
-      <Icon size={18} strokeWidth={activeTab === id ? 3 : 2} />
-      <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em]">{label}</span>
+      <Icon size={16} strokeWidth={activeTab === id ? 2.5 : 1.8} className="flex-shrink-0" />
+      <span className="text-[9px] lg:text-[11px] font-black uppercase tracking-[0.12em]">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="absolute right-1 sm:right-4 top-2 h-4 w-4 flex items-center justify-center rounded-full text-[8px] font-black bg-primary text-white shadow-[0_0_10px_rgba(212,83,126,0.5)]">
+        <span className="absolute -top-1 -right-1 lg:static lg:ml-1 h-4 w-4 lg:h-5 lg:w-auto lg:px-1.5 flex items-center justify-center rounded-full text-[8px] font-black bg-primary text-white">
           {count}
         </span>
       )}
@@ -229,18 +176,21 @@ const Matches = () => {
    return (
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#020202]/98 px-6 sm:px-8 pt-8 sm:pt-12 pb-6 border-b border-white/[0.03]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between mb-8 sm:mb-10">
-           <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Synergy Engine</h1>
-           <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
-              <Filter size={18} />
+      <header className="sticky top-0 z-40 bg-[#020202]/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-3 border-b border-white/[0.04]">
+        <div className="max-w-4xl mx-auto flex items-center justify-between mb-3">
+           <div>
+             <h1 className="text-lg sm:text-xl lg:text-2xl font-black italic uppercase tracking-tighter text-white">Synergy Engine</h1>
+             <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest hidden sm:block">Your social circle</p>
+           </div>
+           <div className="h-8 w-8 sm:h-9 sm:w-9 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-zinc-500">
+              <Filter size={15} />
            </div>
         </div>
 
-        {/* Editorial Tab Navigation */}
-        <div className="max-w-7xl mx-auto mb-4">
-          <div className="max-w-lg mx-auto bg-zinc-900/50 p-1.5 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.05] flex justify-around shadow-xl overflow-hidden">
-           <TabButton id="discover" label="Discover" icon={Compass} />
+        {/* Tab Navigation */}
+        <div className="max-w-4xl mx-auto">
+          <div className="w-full bg-zinc-900/60 p-1 rounded-xl border border-white/[0.05] flex gap-1">
+           <TabButton id="activity" label="Activity" icon={Activity} count={circleItems.length} />
            <TabButton id="mutual" label="Circle" icon={Users} count={matches.length} />
            <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
            <TabButton id="sent" label="Pending" icon={Zap} count={outgoingRequests.length} />
@@ -248,51 +198,8 @@ const Matches = () => {
       </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 pt-8 sm:pt-10 pb-32 lg:pb-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 lg:pb-8">
         <AnimatePresence mode="wait">
-          {activeTab === 'discover' && (
-            <motion.div
-              key="discover"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-8"
-            >
-               <div className="flex items-center gap-3">
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/10" />
-                  <span className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.4em]">Recommended Connections</span>
-                  <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/10" />
-               </div>
-
-               {loadingDiscovery ? (
-                 <div className="grid grid-cols-1 gap-6">
-                   {[1, 2, 3].map(i => (
-                     <div key={i} className="h-80 rounded-[2.5rem] bg-zinc-900/50 animate-pulse border border-white/5" />
-                   ))}
-                 </div>
-               ) : discoveryUsers.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                   {discoveryUsers.map(u => (
-                     <DiscoveryCard 
-                       key={u.id}
-                       user={u}
-                       synergyScore={u.synergyScore}
-                       onConnect={handleConnect}
-                       onViewProfile={(usr) => setSelectedUserForProfile(usr)}
-                     />
-                   ))}
-                 </div>
-               ) : (
-                 <div className="py-12 sm:py-20 text-center">
-                    <div className="mb-6 h-20 w-20 mx-auto bg-zinc-900/50 rounded-full flex items-center justify-center text-zinc-700">
-                       <Compass size={40} />
-                    </div>
-                    <h3 className="text-lg font-black text-zinc-500 uppercase tracking-tighter">Nexus Reached</h3>
-                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-2 px-10">You've connected with most people sharing your vibe. Stay tuned for new arrivals.</p>
-                 </div>
-               )}
-            </motion.div>
-          )}
 
           {activeTab === 'mutual' && (
              <motion.div
@@ -400,6 +307,120 @@ const Matches = () => {
                   <Button className="mt-10 rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-widest" onClick={() => setActiveTab('discover')}>
                     Start Discovery
                   </Button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ─── ACTIVITY TAB ─────────────────────────────────────────────── */}
+          {activeTab === 'activity' && (
+            <motion.div
+              key="activity"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-black italic uppercase tracking-tight text-white">Circle Activity</h2>
+                  <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">What your friends are up to — last 24h</p>
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-600 border border-white/[0.06] px-2.5 py-1 rounded-full">
+                  {circleItems.length} events
+                </span>
+              </div>
+
+              {circleLoading ? (
+                <div className="space-y-3">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="h-16 rounded-2xl bg-zinc-900/50 animate-pulse border border-white/[0.04]" />
+                  ))}
+                </div>
+              ) : circleItems.length === 0 ? (
+                <div className="py-20 text-center">
+                  <div className="mb-5 h-16 w-16 mx-auto rounded-full bg-zinc-900/60 border border-white/[0.06] flex items-center justify-center">
+                    <Activity size={28} className="text-zinc-700" />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-tight text-zinc-600">No Activity Yet</h3>
+                  <p className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest mt-2 max-w-48 mx-auto leading-relaxed">
+                    When your friends set vibes, post signals, or start debates, it appears here.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('discover')}
+                    className="mt-8 px-5 py-2.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-white/20 transition-all"
+                  >
+                    Find More Friends
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {circleItems.map(item => {
+                    const vibeEmojis: Record<string, string> = {
+                      Gaming: '🎮', Studying: '📚', Coffee: '☕',
+                      Party: '🎵', Library: '📖', Incognito: '👻'
+                    };
+                    const typeConfig: Record<string, { emoji: string; label: string; color: string; bg: string }> = {
+                      vibe:    { emoji: vibeEmojis[item.meta?.vibe || ''] || '📡', label: 'Vibe Update',  color: 'text-primary',    bg: 'bg-primary/10 border-primary/20' },
+                      signal:  { emoji: '📡',                                          label: 'Signal',       color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
+                      poll:    { emoji: '⚡',                                              label: 'Debate',       color: 'text-amber-400',   bg: 'bg-amber-400/10 border-amber-400/20' },
+                      joined:  { emoji: '👋',                                              label: 'Joined',      color: 'text-blue-400',   bg: 'bg-blue-400/10 border-blue-400/20' },
+                      ignited: { emoji: '🔥',                                              label: 'Ignited',    color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/20' },
+                    };
+                    const cfg = typeConfig[item.type] || typeConfig.signal;
+
+                    // Time remaining display
+                    const expiresMs = item.expiresAt?.toMillis() || 0;
+                    const remaining = Math.max(0, expiresMs - Date.now());
+                    const hoursLeft = Math.floor(remaining / (1000 * 60 * 60));
+                    const minsLeft  = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                    const timeStr = hoursLeft > 0 ? `${hoursLeft}h left` : `${minsLeft}m left`;
+                    const isExpiringSoon = remaining < 2 * 60 * 60 * 1000;
+
+                    return (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-start gap-3 p-3.5 rounded-2xl bg-zinc-900/50 border border-white/[0.04] hover:border-white/[0.08] transition-all"
+                      >
+                        {/* Avatar */}
+                        <div className="flex-shrink-0 relative">
+                          <div className="h-10 w-10 rounded-full overflow-hidden bg-zinc-800 border border-white/10">
+                            {item.fromPhotoURL ? (
+                              <img src={item.fromPhotoURL} alt={item.fromName} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center font-black text-xs text-primary">
+                                {item.fromName?.[0]}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`absolute -bottom-1 -right-1 text-xs h-5 w-5 flex items-center justify-center rounded-full border-2 border-zinc-900 ${cfg.bg}`}>
+                            {cfg.emoji}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-[11px] font-black text-white tracking-wide">{item.fromName}</span>
+                              <span className="text-[11px] font-medium text-zinc-400"> {item.content}</span>
+                            </div>
+                            <span className={`flex-shrink-0 text-[8px] font-black uppercase tracking-widest ${isExpiringSoon ? 'text-rose-500' : 'text-zinc-600'}`}>
+                              {timeStr}
+                            </span>
+                          </div>
+
+                          {/* Type badge */}
+                          <span className={`inline-block mt-1 text-[7px] font-black uppercase tracking-[0.15em] px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>

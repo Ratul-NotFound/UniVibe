@@ -13,7 +13,7 @@ const BottomNav = () => {
     { icon: Home, path: '/', label: 'Home' },
     { icon: Search, path: '/search', label: 'Search' },
     { icon: Heart, path: '/matches', label: 'Matches' },
-    { icon: MessageCircle, path: '/chat', label: 'Chat' },
+    { icon: MessageCircle, path: '/chat', label: 'Inbox' },
     { icon: User, path: '/profile', label: 'Profile' },
   ];
 
@@ -35,7 +35,7 @@ const BottomNav = () => {
           <div className="relative">
             <Icon size={24} />
             {/* Notification Dot example */}
-            {label === 'Chat' && (
+            {label === 'Inbox' && (
               <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
             )}
           </div>
