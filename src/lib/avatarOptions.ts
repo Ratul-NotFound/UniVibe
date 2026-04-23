@@ -22,7 +22,7 @@ const OTHER_SEEDS = [
   'Ellis', 'Harper', 'Jordan', 'Casey', 'Remy', 'Rivera', 'Aster', 'Lennon',
 ];
 
-const buildStyleSet = (style: 'micah' | 'lorelei' | 'adventurer-neutral', seeds: string[]): string[] =>
+const buildStyleSet = (style: 'micah' | 'lorelei' | 'adventurer-neutral' | 'avataaars-neutral', seeds: string[]): string[] =>
   seeds.map((seed) => `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}`);
 
 // Use stable style-only URLs to avoid broken links from unsupported params.

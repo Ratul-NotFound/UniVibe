@@ -16,6 +16,7 @@ import { toast } from 'react-hot-toast';
 interface SignalCardProps {
   signal: any;
   onJoin: (id: string, ownerId?: string) => void;
+  onOpenPortal: (id: string) => void;
   onIgnite: (id: string, ownerId?: string) => void;
   currentUser: any;
   onProfileClick?: (user: any) => void;

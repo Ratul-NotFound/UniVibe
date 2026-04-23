@@ -10,11 +10,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useGamification } from './useGamification';
 import { toast } from 'react-hot-toast';
 
+import { createAppNotification } from '@/lib/notifications';
+
 export type SignalCategory = 
   | 'event' | 'concert' | 'seminar' | 'lost' | 'help' | 'invite' | 'story' | 'fair' | 'explore'
   | 'partner' | 'club' | 'career' | 'food' | 'sports' | 'ride' | 'confess' | 'tech' | 'exam'
   | 'book' | 'volunteer' | 'workshop' | 'debate' | 'hackathon' | 'contest' | 'travel' | 'gaming' 
-  | 'fitness' | 'movie' | 'art' | 'other';
+  | 'fitness' | 'movie' | 'art' | 'other' | 'broadcast';
 
 export interface BroadcastSignal {
   id: string;
@@ -63,7 +65,8 @@ export const SIGNAL_THEMES: Record<SignalCategory, { label: string, icon: string
   fitness:   { label: 'Gym/Fit',     icon: '💪', color: 'text-rose-400',   bg: 'bg-rose-400/10' },
   movie:     { label: 'Movie Night', icon: '🎬', color: 'text-zinc-200',   bg: 'bg-zinc-200/10' },
   art:       { label: 'Creative',    icon: '🎨', color: 'text-fuchsia-400',bg: 'bg-fuchsia-400/10' },
-  other:     { label: 'Miscellaneous',icon: '✨', color: 'text-zinc-500',   bg: 'bg-zinc-500/10' }
+  other:     { label: 'Miscellaneous',icon: '✨', color: 'text-zinc-500',   bg: 'bg-zinc-500/10' },
+  broadcast: { label: 'Broadcast',    icon: '📡', color: 'text-primary',     bg: 'bg-primary/5' }
 };
 
 export const CAMPUS_ZONES = [

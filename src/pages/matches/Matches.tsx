@@ -9,7 +9,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
 import { 
   MessageCircle, Heart, ChevronRight, Mail, X, 
-  Search, Filter, Users, Zap, Activity
+  Search, Filter, Users, Zap, Activity, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -306,7 +306,7 @@ const Matches = () => {
                   <p className="mt-2 max-w-[250px] text-[10px] font-bold uppercase tracking-widest text-zinc-600">
                      Time to enter the Synergy Engine and find your vibe.
                   </p>
-                  <Button className="mt-10 rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-widest" onClick={() => setActiveTab('discover')}>
+                  <Button className="mt-10 rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-widest" onClick={() => navigate('/')}>
                     Start Discovery
                   </Button>
                 </div>
@@ -350,7 +350,7 @@ const Matches = () => {
                     When your friends set vibes, post signals, or start debates, it appears here.
                   </p>
                   <button
-                    onClick={() => setActiveTab('discover')}
+                    onClick={() => navigate('/')}
                     className="mt-8 px-5 py-2.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-white/20 transition-all"
                   >
                     Find More Friends

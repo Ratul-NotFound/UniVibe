@@ -6,6 +6,7 @@ import {
 import { ref, set, remove } from 'firebase/database';
 import { db, rtdb } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'react-hot-toast';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { createAppNotification } from '@/lib/notifications';
 import { useSocial } from './useSocial';

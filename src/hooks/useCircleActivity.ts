@@ -30,6 +30,7 @@ export interface CircleActivityItem {
     category?: string;
     pollTitle?: string;
     signalId?: string;
+    visibility?: string;
   };
   createdAt: Timestamp;
   expiresAt: Timestamp;
