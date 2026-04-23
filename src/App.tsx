@@ -14,6 +14,7 @@ import Matches from '@/pages/matches/Matches';
 import ChatRoom from '@/pages/chat/ChatRoom';
 import ChatList from '@/pages/chat/ChatList';
 import Profile from '@/pages/profile/Profile';
+import Notifications from '@/pages/notifications/Notifications';
 import AdminLayout from '@/pages/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminUsers from '@/pages/admin/Users';
@@ -96,6 +97,12 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute>
               <AppLayout><Profile /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <AppLayout><Notifications /></AppLayout>
             </ProtectedRoute>
           } />
 

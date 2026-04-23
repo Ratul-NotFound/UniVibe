@@ -15,10 +15,10 @@ import { toast } from 'react-hot-toast';
 
 interface SignalCardProps {
   signal: any;
-  onJoin: (id: string) => void;
-  onOpenPortal: (id: string) => void;
-  onIgnite: (id: string) => void;
+  onJoin: (id: string, ownerId?: string) => void;
+  onIgnite: (id: string, ownerId?: string) => void;
   currentUser: any;
+  onProfileClick?: (user: any) => void;
 }
 
 // Share Modal
@@ -152,7 +152,7 @@ const ShareModal: React.FC<{
 };
 
 export const SignalCard: React.FC<SignalCardProps> = ({
-  signal, onJoin, onOpenPortal, onIgnite, currentUser
+  signal, onJoin, onOpenPortal, onIgnite, currentUser, onProfileClick
 }) => {
   const theme = SIGNAL_THEMES[signal.category as keyof typeof SIGNAL_THEMES] || SIGNAL_THEMES.broadcast;
   const isJoined = signal.interactors?.includes(currentUser?.uid);
@@ -200,9 +200,17 @@ export const SignalCard: React.FC<SignalCardProps> = ({
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className={`h-9 w-9 rounded-full overflow-hidden border flex-shrink-0 ${
-                signal.isAnonymous ? 'bg-zinc-800 border-white/10 flex items-center justify-center' : 'border-white/10'
-              }`}>
+              <div 
+                onClick={() => !signal.isAnonymous && onProfileClick?.({ 
+                  id: signal.fromUid, 
+                  name: signal.fromName, 
+                  photoURL: signal.fromPhotoURL,
+                  department: signal.fromDepartment || 'Student'
+                })}
+                className={`h-9 w-9 rounded-full overflow-hidden border flex-shrink-0 ${
+                  signal.isAnonymous ? 'bg-zinc-800 border-white/10 flex items-center justify-center' : 'border-white/10 cursor-pointer hover:border-primary transition-colors'
+                }`}
+              >
                 {signal.isAnonymous ? (
                   <Ghost size={16} className="text-zinc-500 mx-auto" />
                 ) : signal.fromPhotoURL ? (
@@ -213,7 +221,15 @@ export const SignalCard: React.FC<SignalCardProps> = ({
                   </div>
                 )}
               </div>
-              <div>
+              <div 
+                className={!signal.isAnonymous ? "cursor-pointer" : ""}
+                onClick={() => !signal.isAnonymous && onProfileClick?.({ 
+                  id: signal.fromUid, 
+                  name: signal.fromName, 
+                  photoURL: signal.fromPhotoURL,
+                  department: signal.fromDepartment || 'Student'
+                })}
+              >
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-black text-white tracking-wide">
                     {signal.isAnonymous ? 'Anonymous' : signal.fromName}
@@ -275,7 +291,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
             <div className="flex items-center gap-2">
               {!isOwner && signal.priority === 0 && (
                 <button
-                  onClick={() => onIgnite(signal.id)}
+                  onClick={() => onIgnite(signal.id, signal.fromUid)}
                   className="h-8 px-3 rounded-xl border border-white/[0.06] hover:bg-orange-500/10 hover:border-orange-500/30 transition-all flex items-center gap-1.5 text-[9px] font-black uppercase text-zinc-500 hover:text-orange-400"
                 >
                   <Flame size={12} className="text-orange-500" />
@@ -285,7 +301,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
 
               {signal.isPortal ? (
                 <button
-                  onClick={() => isJoined ? onOpenPortal(signal.id) : onJoin(signal.id)}
+                  onClick={() => isJoined ? onOpenPortal(signal.id) : onJoin(signal.id, signal.fromUid)}
                   className={`h-8 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                     isJoined
                       ? 'bg-zinc-800 text-white hover:bg-primary/20 border border-primary/20'
@@ -300,7 +316,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={() => !isJoined && onJoin(signal.id)}
+                  onClick={() => !isJoined && onJoin(signal.id, signal.fromUid)}
                   className={`h-8 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                     isJoined
                       ? 'bg-zinc-800 text-zinc-400 border border-white/[0.05] cursor-default'

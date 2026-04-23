@@ -27,8 +27,8 @@ const buildStyleSet = (style: 'micah' | 'lorelei' | 'adventurer-neutral', seeds:
 
 // Use stable style-only URLs to avoid broken links from unsupported params.
 export const MALE_AVATARS: string[] = buildStyleSet('micah', MALE_SEEDS);
-export const FEMALE_AVATARS: string[] = buildStyleSet('lorelei', FEMALE_SEEDS);
-export const OTHER_AVATARS: string[] = buildStyleSet('adventurer-neutral', OTHER_SEEDS);
+export const FEMALE_AVATARS: string[] = buildStyleSet('micah', FEMALE_SEEDS);
+export const OTHER_AVATARS: string[] = buildStyleSet('avataaars-neutral', OTHER_SEEDS);
 
 export const getAvatarOptionsByGender = (gender?: string): string[] => {
   if (gender === 'Male') return MALE_AVATARS;

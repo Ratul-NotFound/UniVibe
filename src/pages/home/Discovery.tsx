@@ -30,6 +30,8 @@ import { PollComposer } from '@/components/battles/PollComposer';
 import { LevelProgress } from '@/components/gamification/LevelProgress';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { postCircleActivity } from '@/hooks/useCircleActivity';
+import { useMatches } from '@/hooks/useMatches';
+import ProfileCard from '@/components/profile/ProfileCard';
 
 type TabType = 'broadcast' | 'battles' | 'quests' | 'vibe-check' | 'shop';
 
@@ -65,6 +67,8 @@ const Discovery = () => {
   const [vibeStats, setVibeStats] = useState<Record<string, number>>({});
   const [userVibe, setUserVibe] = useState<string | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<any>(null);
+  const { matches } = useMatches();
 
   // Real-time Listeners
   useEffect(() => {
@@ -200,8 +204,8 @@ const Discovery = () => {
     }
   };
 
-  const handleJoin = async (id: string) => {
-    await joinSignal(id);
+  const handleJoin = async (id: string, ownerId?: string) => {
+    await joinSignal(id, ownerId);
     await updateMissionProgress('f2'); // Portal Scout
     const signal = broadcasts.find(b => b.id === id);
     if (signal?.isPortal) {
@@ -209,8 +213,8 @@ const Discovery = () => {
     }
   };
 
-  const handleIgnite = async (id: string) => {
-    await igniteSignal(id);
+  const handleIgnite = async (id: string, ownerId?: string) => {
+    await igniteSignal(id, ownerId);
   };
 
   const handleUpdateVibe = async (vibe: string) => {
@@ -308,7 +312,7 @@ const Discovery = () => {
 
   return (
     <div className="min-h-screen bg-[#020202] text-white font-sans overflow-x-hidden">
-      <header className="sticky top-0 z-[60] bg-[#020202]/95 backdrop-blur-3xl px-6 py-5 border-b border-white/[0.03]">
+      <header className="hidden lg:sticky lg:top-0 z-[60] bg-[#020202]/95 backdrop-blur-3xl px-6 py-5 border-b border-white/[0.03]">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="bg-zinc-900/80 p-1.5 rounded-2xl flex items-center gap-2 border border-white/[0.05]">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-xl border border-white/[0.02]">
@@ -325,9 +329,11 @@ const Discovery = () => {
              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Global Hub</span>
           </div>
         </div>
+      </header>
 
-        <div className="max-w-7xl mx-auto mt-6 px-2">
-          <div className="max-w-lg mx-auto">
+      {/* Tabs - Mobile: Static/Scrollable | Desktop: Under hidden header */}
+      <div className="z-40 bg-[#020202] px-5 py-2 border-b border-white/[0.03] lg:border-none">
+        <div className="max-w-lg mx-auto">
           <div className="bg-zinc-900/40 p-1.5 rounded-2xl border border-white/[0.05] flex gap-1 overflow-x-auto no-scrollbar shadow-xl">
              {[
                { id: 'broadcast', label: 'Feed', icon: Radio },
@@ -359,19 +365,27 @@ const Discovery = () => {
           </div>
         </div>
       </div>
-    </header>
 
-      <main className="max-w-7xl mx-auto px-5 pt-8 pb-32 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-5 pt-4 pb-32 lg:pb-12">
         <AnimatePresence mode="wait">
           {activeTab === 'broadcast' && (
             <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
-               <div className="flex items-center justify-between bg-zinc-900/60 px-5 py-4 rounded-2xl border border-white/[0.05]">
+               {/* Editorial Sub-Header - Desktop Only */}
+               <div className="hidden lg:flex items-center justify-between bg-zinc-900/60 px-5 py-4 rounded-2xl border border-white/[0.05]">
                   <div>
                     <h2 className="text-base font-black italic uppercase tracking-tight text-white">Live Campus Feed</h2>
                     <p className="text-[9px] font-bold text-zinc-500 mt-0.5 uppercase tracking-widest">Broadcast your energy to the campus</p>
                   </div>
                   <button onClick={() => setIsPosting(true)} className="flex items-center gap-2 h-9 px-4 bg-white text-black rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-primary hover:text-white transition-colors flex-shrink-0">
                     <Zap size={13} className="fill-current" /> Transmit
+                  </button>
+               </div>
+
+               {/* Mobile Transmit Button - Floating or Inline? Let's keep it inline but simpler */}
+               <div className="lg:hidden flex items-center justify-between bg-zinc-900/40 p-4 rounded-2xl border border-white/[0.03]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Global Feed</p>
+                  <button onClick={() => setIsPosting(true)} className="flex items-center gap-2 h-10 px-6 bg-white text-black rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl">
+                    <Zap size={14} className="fill-current" /> Transmit
                   </button>
                </div>
 
@@ -385,6 +399,7 @@ const Discovery = () => {
                           onJoin={handleJoin}
                           onOpenPortal={(id) => setActivePortalId(id)}
                           onIgnite={handleIgnite}
+                          onProfileClick={setSelectedUserForProfile}
                         />
                       </div>
                     ))
@@ -619,6 +634,22 @@ const Discovery = () => {
             onClose={() => setIsPollPosting(false)} 
             onPost={handleCreatePoll} 
           />
+        </Modal>
+
+        <Modal
+          isOpen={Boolean(selectedUserForProfile)}
+          onClose={() => setSelectedUserForProfile(null)}
+          title="Synergy Profile"
+        >
+          {selectedUserForProfile && (
+            <div className="h-[550px]">
+              <ProfileCard 
+                user={selectedUserForProfile} 
+                className="h-full border-none shadow-none bg-transparent"
+                isFriend={matches.some(m => m.otherUserId === selectedUserForProfile.id)}
+              />
+            </div>
+          )}
         </Modal>
       </main>
 

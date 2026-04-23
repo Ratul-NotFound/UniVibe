@@ -29,7 +29,10 @@ import {
   Eye,
   AlertTriangle,
   Sparkles,
-  Coins
+  Coins,
+  Info,
+  MessageCircle,
+  Zap
 } from 'lucide-react';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -63,6 +66,8 @@ const Profile = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSafetyCenterOpen, setIsSafetyCenterOpen] = useState(false);
   const [unblockingUid, setUnblockingUid] = useState<string | null>(null);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
     username: userData?.username || '',
     phone: userData?.phone || '',
@@ -726,6 +731,26 @@ const Profile = () => {
               </div>
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
+            <button
+              onClick={() => setIsTermsModalOpen(true)}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <Shield size={20} className="text-zinc-500" />
+                <span className="text-sm font-bold">Terms & Community Protocol</span>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </button>
+            <button
+              onClick={() => setIsAboutModalOpen(true)}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <Info size={20} className="text-zinc-500" />
+                <span className="text-sm font-bold">About UniVibe</span>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </button>
             <button 
               onClick={handleLogout}
               className="flex w-full items-center gap-3 p-4 text-danger hover:bg-danger/5"
@@ -797,6 +822,191 @@ const Profile = () => {
               <p className="text-xs text-zinc-500">No blocked users yet.</p>
             )}
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isAboutModalOpen} onClose={() => setIsAboutModalOpen(false)} title="THE MANIFESTO">
+        <div className="space-y-10 py-6 max-h-[70vh] overflow-y-auto no-scrollbar px-2">
+           {/* Hero Branding */}
+           <div className="text-center">
+              <div className="h-24 w-24 mx-auto bg-gradient-to-tr from-primary to-rose-400 rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-primary/30 rotate-6 mb-8 relative">
+                 <Sparkles size={48} className="text-white" />
+                 <div className="absolute -top-2 -right-2 h-8 w-8 bg-black rounded-full border border-white/10 flex items-center justify-center text-[10px] font-black text-white">3.0</div>
+              </div>
+              <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white">UniVibe</h2>
+              <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500 mt-3 font-mono">Connecting Campus Frequencies</p>
+           </div>
+
+           {/* Core Philosophy */}
+           <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                 <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/10" />
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Philosophy</h3>
+                 <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/10" />
+              </div>
+              <p className="text-sm text-zinc-300 leading-relaxed font-medium text-center italic">
+                 "In a world of noise, we help you find the frequency that matters."
+              </p>
+              <p className="text-xs text-zinc-400 leading-relaxed text-center px-4">
+                 UniVibe was built on the belief that university life shouldn't be lived through a screen, but *facilitated* by it. We've stripped away the vanity metrics of traditional social media to focus on what actually counts: **Live Presence, Genuine Vibes, and Shared Interests.**
+              </p>
+           </div>
+
+           {/* Core Pillars */}
+           <div className="grid grid-cols-1 gap-4">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-2">The Nexus Pillars</h3>
+              {[
+                { 
+                  title: 'Zero Vanity', 
+                  desc: 'No follower counts, no public like totals. Your influence is measured by the quality of your signals.',
+                  icon: EyeOff 
+                },
+                { 
+                  title: 'Privacy First', 
+                  desc: 'With Ghost Mode and locked identities, you control exactly who sees your pulse and when.',
+                  icon: Shield 
+                },
+                { 
+                  title: 'Real Interaction', 
+                  desc: 'From Vibe Portals to Arena Battles, every feature is designed to spark a conversation.',
+                  icon: MessageCircle 
+                }
+              ].map((p, i) => (
+                <div key={i} className="p-5 rounded-3xl bg-zinc-900/50 border border-white/[0.03] flex gap-5 items-start group hover:bg-zinc-900 transition-all">
+                   <div className="h-10 w-10 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors">
+                      <p.icon size={20} />
+                   </div>
+                   <div className="flex-1">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-white mb-1.5">{p.title}</h4>
+                      <p className="text-[10px] font-medium text-zinc-500 leading-normal">{p.desc}</p>
+                   </div>
+                </div>
+              ))}
+           </div>
+
+           {/* The Tech Stack */}
+           <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+                 <Zap size={14} /> System Intel
+              </h3>
+              <div className="space-y-4">
+                 <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Architecture</span>
+                    <span className="text-[10px] font-black text-white uppercase">React + RTDB Nexus</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Encryption</span>
+                    <span className="text-[10px] font-black text-white uppercase">End-to-End Frequency</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Deployment</span>
+                    <span className="text-[10px] font-black text-white uppercase">v3.2.1-Production</span>
+                 </div>
+              </div>
+           </div>
+
+           {/* Footer Credits */}
+           <div className="text-center space-y-4 pt-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">
+                 Designed for the next generation of campus leaders.
+              </p>
+              <div className="flex justify-center gap-6 opacity-30">
+                 <span className="h-1 w-1 rounded-full bg-white" />
+                 <span className="h-1 w-1 rounded-full bg-white" />
+                 <span className="h-1 w-1 rounded-full bg-white" />
+              </div>
+              <p className="text-[8px] font-bold text-zinc-700 uppercase tracking-widest">
+                 © 2026 UniVibe Studio · All Rights Reserved
+              </p>
+           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} title="COMMUNITY PROTOCOL">
+        <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto no-scrollbar px-2">
+           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Notice of Compliance</p>
+              <p className="text-xs text-zinc-300 leading-relaxed italic">
+                 By accessing the UniVibe frequency, you agree to the following campus safety standards and legal frameworks.
+              </p>
+           </div>
+
+           <div className="space-y-8">
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500" /> 01. Verified Entry
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    UniVibe is a closed-circuit network. Only verified **university emails** (@diu.edu.bd) are permitted. This ensures community safety and prevents outsider intrusion, automated spam, or external harassment.
+                 </p>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <Shield size={14} className="text-primary" /> 02. The Guardian Protocol
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    Your data is yours. All messages are **end-to-end encrypted**. The UniVibe administration does not access, use, or sell personal data for commercial purposes. Your contact info (email/number) is strictly hidden and only decrypted if a serious violation (harassment, criminal activity) is reported and verified by the safety board.
+                 </p>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <AlertTriangle size={14} className="text-amber-500" /> 03. Zero Tolerance Code
+                 </h4>
+                 <div className="bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
+                    <ul className="text-[11px] text-zinc-400 space-y-2 list-disc pl-4 font-medium uppercase tracking-tight">
+                       <li>No harassment, bullying, or targeted aggression.</li>
+                       <li>No 18+ (Adult), explicit, or NSFW content.</li>
+                       <li>No hate speech, discrimination, or tribalism.</li>
+                       <li>No solicitation, commercial spam, or fraud.</li>
+                       <li>No impersonation of faculty or other students.</li>
+                    </ul>
+                 </div>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <Sparkles size={14} className="text-primary" /> 04. Content Rights
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    You retain ownership of the content you post (signals, polls). However, by posting, you grant UniVibe a non-exclusive, royalty-free license to host and display your content within the platform ecosystem.
+                 </p>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <Lock size={14} className="text-zinc-400" /> 05. Account Responsibility
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    You are solely responsible for maintaining the security of your account credentials. Any activity performed through your account is deemed your responsibility. Notify us immediately if you detect unauthorized access.
+                 </p>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <LogOut size={14} className="text-rose-500" /> 06. Enforcement & Ban
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    Violating these protocols results in immediate **Signal Termination**. We reserve the right to suspend or permanently delete accounts that harm the community vibe or violate university standards.
+                 </p>
+              </section>
+
+              <section className="space-y-3">
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <Info size={14} className="text-zinc-400" /> 07. Service Continuity
+                 </h4>
+                 <p className="text-xs text-zinc-500 leading-relaxed">
+                    UniVibe is a living platform. We may modify features, uptime availability, or these terms at any time to improve the campus experience.
+                 </p>
+              </section>
+           </div>
+
+           <div className="pt-8 border-t border-white/5 text-center">
+              <p className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.3em] leading-relaxed">
+                 High Frequency · High Safety · High Connection
+              </p>
+           </div>
         </div>
       </Modal>
     </div>

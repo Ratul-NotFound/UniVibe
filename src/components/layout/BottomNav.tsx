@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Heart, MessageCircle, User, Users } from 'lucide-react';
+import { Home, Search, Heart, MessageCircle, User, Users, Bell } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useNotifications } from '@/hooks/useNotifications';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -33,13 +34,9 @@ const BottomNav = () => {
           }
         >
           <div className="relative">
-            <Icon size={24} />
-            {/* Notification Dot example */}
-            {label === 'Inbox' && (
-              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
-            )}
+            <Icon size={22} />
           </div>
-          <span className="text-[11px] font-black uppercase tracking-wider">
+          <span className="text-[10px] font-black uppercase tracking-wider">
             {label}
           </span>
         </NavLink>

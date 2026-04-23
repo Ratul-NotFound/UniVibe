@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
+import { 
+  doc, updateDoc, serverTimestamp, deleteDoc, 
+  collection, query, where, onSnapshot, getDoc, setDoc 
 } from 'firebase/firestore';
-import { ref, set } from 'firebase/database';
+import { ref, set, remove } from 'firebase/database';
 import { db, rtdb } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
@@ -201,6 +194,22 @@ export const useMatches = () => {
     }
   };
 
+  const unfriend = async (otherUserId: string) => {
+    if (!user) return;
+    try {
+      const matchId = getMatchDocId(user.uid, otherUserId);
+      await deleteDoc(doc(db, 'matches', matchId));
+      
+      // Cleanup RTDB presence if needed, though usually handled by presence
+      // Just clear the chat ID link if stored
+      
+      toast.success('Connection removed');
+    } catch (error) {
+      console.error('Unfriend failed:', error);
+      toast.error('Failed to unfriend');
+    }
+  };
+
   return {
     matches,
     incomingRequests,
@@ -209,5 +218,6 @@ export const useMatches = () => {
     acceptRequest,
     declineRequest,
     cancelRequest,
+    unfriend,
   };
 };

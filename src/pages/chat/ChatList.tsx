@@ -168,14 +168,18 @@ const ChatList = () => {
 
   return (
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
-      {/* Editorial Header */}
-      <div className="px-6 sm:px-8 pt-8 sm:pt-12 pb-8 border-b border-white/[0.03]">
-        <div className="flex items-center justify-between mb-8 sm:mb-10">
-          <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Inbox</h1>
-          <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
+      {/* Editorial Header - Desktop Only */}
+      <div className="hidden lg:block px-8 pt-12 pb-8 border-b border-white/[0.03]">
+        <div className="flex items-center justify-between mb-10">
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Inbox</h1>
+          <div className="h-12 w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-zinc-500">
              <MessageCircle size={18} />
           </div>
         </div>
+      </div>
+
+      <div className="px-6 sm:px-8 pt-6 lg:pt-0 pb-8">
+        {/* Editorial Notes Rail */}
 
         {/* Editorial Notes Rail */}
         <div className="mb-0">

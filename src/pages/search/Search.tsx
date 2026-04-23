@@ -186,8 +186,8 @@ const Search = () => {
   return (
     <div className="min-h-screen bg-[#020202] p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-4">
-        <h1 className="text-3xl font-black text-white">Browse</h1>
-        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        <h1 className="hidden lg:block text-4xl font-black text-white">Browse</h1>
+        <p className="hidden lg:block text-xs font-medium text-zinc-500">
           Search shows active accounts except blocked, locked, or banned profiles.
         </p>
 

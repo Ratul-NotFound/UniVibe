@@ -175,28 +175,30 @@ const Matches = () => {
 
    return (
     <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#020202]/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-3 border-b border-white/[0.04]">
+      {/* Header - Desktop Only */}
+      <header className="hidden lg:block sticky top-0 z-40 bg-[#020202]/95 backdrop-blur-xl px-8 pt-5 pb-3 border-b border-white/[0.04]">
         <div className="max-w-4xl mx-auto flex items-center justify-between mb-3">
            <div>
-             <h1 className="text-lg sm:text-xl lg:text-2xl font-black italic uppercase tracking-tighter text-white">Synergy Engine</h1>
-             <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest hidden sm:block">Your social circle</p>
+             <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white">Synergy Engine</h1>
+             <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Your social circle</p>
            </div>
-           <div className="h-8 w-8 sm:h-9 sm:w-9 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-zinc-500">
+           <div className="h-9 w-9 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-zinc-500">
               <Filter size={15} />
            </div>
         </div>
+      </header>
 
-        {/* Tab Navigation */}
+      {/* Mobile Tab Navigation Only */}
+      <div className="lg:hidden sticky top-16 z-40 bg-[#020202]/95 backdrop-blur-xl px-4 py-3 border-b border-white/[0.04]">
         <div className="max-w-4xl mx-auto">
           <div className="w-full bg-zinc-900/60 p-1 rounded-xl border border-white/[0.05] flex gap-1">
-           <TabButton id="activity" label="Radar" icon={Activity} count={circleItems.length} />
-           <TabButton id="mutual" label="Friends" icon={Users} count={matches.length} />
-           <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
-           <TabButton id="sent" label="Pending" icon={Zap} count={outgoingRequests.length} />
+            <TabButton id="activity" label="Radar" icon={Activity} count={circleItems.length} />
+            <TabButton id="mutual" label="Friends" icon={Users} count={matches.length} />
+            <TabButton id="incoming" label="Requests" icon={Mail} count={incomingRequests.length} />
+            <TabButton id="sent" label="Pending" icon={Zap} count={outgoingRequests.length} />
+          </div>
         </div>
       </div>
-      </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 lg:pb-8">
         <AnimatePresence mode="wait">
@@ -534,6 +536,7 @@ const Matches = () => {
             <ProfileCard 
               user={selectedUserForProfile} 
               className="h-full"
+              isFriend={true}
             />
           </div>
         )}

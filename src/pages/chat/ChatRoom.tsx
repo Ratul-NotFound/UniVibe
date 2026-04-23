@@ -152,7 +152,7 @@ const ChatRoom = () => {
         fromUid: user.uid,
         type: 'message',
         title: 'New message',
-        body: `${user.displayName || 'Someone'}: ${content.slice(0, 80)}`,
+        body: `${userData?.name || 'Someone'}: ${content.slice(0, 80)}`,
         link: `/chat/${chatId}`,
         metadata: { chatId },
       }).catch((err) => console.error('Failed to create message notification', err));
@@ -487,6 +487,7 @@ const ChatRoom = () => {
             <ProfileCard 
               user={recipient} 
               className="h-full border-none shadow-none bg-transparent"
+              isFriend={true}
             />
           </div>
         )}

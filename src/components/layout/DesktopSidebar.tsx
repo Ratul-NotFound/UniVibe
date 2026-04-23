@@ -2,10 +2,11 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { 
   Home, Search, Heart, MessageCircle, User, 
-  Settings, LogOut, Compass, Sparkles, Zap
+  Settings, LogOut, Compass, Sparkles, Zap, Bell
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
+import { useNotifications } from '@/hooks/useNotifications';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -14,12 +15,14 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const DesktopSidebar = () => {
-    const { user, userData } = useAuth();
+  const { user, userData } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const navItems = [
     { icon: Home, path: '/', label: 'Home', desc: 'Main Discovery' },
     { icon: Search, path: '/search', label: 'Search', desc: 'Search Platform' },
     { icon: Heart, path: '/matches', label: 'Circle', desc: 'Your Connections' },
+    { icon: Bell, path: '/notifications', label: 'Alerts', desc: 'Notifications', badge: unreadCount },
     { icon: MessageCircle, path: '/chat', label: 'Inbox', desc: 'Private Inbox' },
     { icon: User, path: '/profile', label: 'Profile', desc: 'Personal Profile' },
   ];
@@ -43,7 +46,7 @@ const DesktopSidebar = () => {
         <div className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-700 mb-4 px-2">
           Operations
         </div>
-        {navItems.map(({ icon: Icon, path, label, desc }) => (
+        {navItems.map(({ icon: Icon, path, label, desc, badge }) => (
           <NavLink
             key={path}
             to={path}
@@ -59,10 +62,15 @@ const DesktopSidebar = () => {
             {({ isActive }) => (
               <>
                 <div className={cn(
-                  "p-3 rounded-xl transition-all duration-500",
+                  "p-3 rounded-xl transition-all duration-500 relative",
                   isActive ? "bg-primary text-black" : "bg-zinc-800 text-zinc-500 group-hover:text-white"
                 )}>
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  {badge !== undefined && badge > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-black text-white ring-2 ring-zinc-900">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-col">
                   <span className={cn(

@@ -1,5 +1,6 @@
 import React from 'react';
 import BottomNav from './BottomNav';
+import MobileHeader from './MobileHeader';
 import DesktopSidebar from './DesktopSidebar';
 import PwaInstallPrompt from './PwaInstallPrompt';
 
@@ -10,6 +11,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <DesktopSidebar />
       
       <div className="flex-1 flex flex-col lg:pl-80 transition-all duration-500 overflow-x-hidden">
+        <MobileHeader />
         <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,16px))] lg:pb-0">
           <div className="mx-auto w-full max-w-7xl">
             {children}

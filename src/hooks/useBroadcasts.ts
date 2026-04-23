@@ -147,7 +147,7 @@ export const useBroadcasts = () => {
     }
   };
 
-  const joinSignal = async (signalId: string) => {
+  const joinSignal = async (signalId: string, signalOwnerId?: string) => {
     if (!user) return;
     try {
       const signalRef = doc(db, 'pulses', signalId);
@@ -155,6 +155,20 @@ export const useBroadcasts = () => {
         interactors: arrayUnion(user.uid),
         interestCount: increment(1)
       });
+
+      // Notify Owner
+      if (signalOwnerId && signalOwnerId !== user.uid) {
+        await createAppNotification({
+          toUid: signalOwnerId,
+          fromUid: user.uid,
+          type: 'system',
+          title: 'Signal Sync 📡',
+          body: `${userData?.name || 'A student'} joined your portal. Check it out!`,
+          link: '/',
+          metadata: { signalId }
+        });
+      }
+
       toast.success('Joined Signal Portal!', { icon: '🤘' });
     } catch (error) {
       console.error('Error joining signal:', error);
@@ -162,7 +176,7 @@ export const useBroadcasts = () => {
     }
   };
 
-  const igniteSignal = async (signalId: string) => {
+  const igniteSignal = async (signalId: string, signalOwnerId?: string) => {
     if (!user) return false;
     const cost = 10;
     const success = await spendCoins(cost);
@@ -173,6 +187,20 @@ export const useBroadcasts = () => {
         await updateDoc(signalRef, {
           priority: 1
         });
+
+        // Notify Owner
+        if (signalOwnerId && signalOwnerId !== user.uid) {
+          await createAppNotification({
+            toUid: signalOwnerId,
+            fromUid: user.uid,
+            type: 'system',
+            title: 'Signal Ignited! 🔥',
+            body: `${userData?.name || 'A student'} ignited your signal. Your frequency is peaking!`,
+            link: '/',
+            metadata: { signalId }
+          });
+        }
+
         toast.success('Signal Ignited! 🔥', { duration: 4000 });
         return true;
       } catch (error) {
