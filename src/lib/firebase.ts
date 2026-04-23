@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
+import { getMessaging, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,7 +18,7 @@ const firebaseConfig = {
 
 const hasKeys = !!import.meta.env.VITE_FIREBASE_API_KEY;
 
-let app;
+let app: any;
 let auth: any;
 let db: any;
 let rtdb: any;
@@ -32,6 +33,14 @@ if (hasKeys) {
     db = getFirestore(app);
     rtdb = getDatabase(app);
     storage = getStorage(app);
+    
+    // Initialize Messaging only if supported (browser environment)
+    isSupported().then(supported => {
+      if (supported) {
+        messaging = getMessaging(app);
+      }
+    });
+
     console.log("Firebase stabilized.");
   } catch (error) {
     console.error("Firebase init fatal:", error);

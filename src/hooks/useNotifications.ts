@@ -94,11 +94,25 @@ export const useNotifications = () => {
         .sort((a, b) => b.receivedAt - a.receivedAt)
         .slice(0, 50);
 
+      // Show toast for new unread notifications that arrived recently
+      const lastKnownMax = notifications.length > 0 ? notifications[0].receivedAt : 0;
+      const newItems = list.filter(n => !n.isRead && n.receivedAt > lastKnownMax && n.receivedAt > Date.now() - 5000);
+      
+      if (newItems.length > 0) {
+        newItems.forEach(item => {
+          toast(item.body, {
+            icon: item.type === 'message' ? '💬' : '🔔',
+            duration: 4000,
+            onClick: () => item.link && (window.location.href = item.link)
+          });
+        });
+      }
+
       setNotifications(list);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, notifications]);
 
   useEffect(() => {
     if (!user || !messaging || !isSupported) return;
@@ -106,10 +120,13 @@ export const useNotifications = () => {
     setPermission(Notification.permission);
 
     const unsubscribe = onMessage(messaging, (payload) => {
-      toast(payload.notification?.body || 'New notification', {
-        icon: '🔔',
-        duration: 4000,
-      });
+      // FCM foreground handler (backup for the Firestore listener)
+      if (payload.notification) {
+        toast.success(payload.notification.body || 'New alert', {
+          icon: '✨',
+          duration: 4000,
+        });
+      }
     });
 
     return () => unsubscribe();
