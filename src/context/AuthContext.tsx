@@ -68,11 +68,12 @@ const hasCompletedOnboarding = (data: UserData | null): boolean => {
     if (sessionOnboarded) return true;
   }
   if (!data) return false;
-  // Consider onboarded if the flag is true OR if key profile fields exist
-  // (handles legacy accounts created before the flag was added)
+  // Consider onboarded if either flag is true OR if key profile fields exist
+  // (handles legacy accounts and naming mismatches)
   return (
     data.onboarded === true ||
-    !!(data.name && data.department) ||
+    (data as any).isOnboarded === true ||
+    !!(data.name && data.department && data.username) ||
     !!(data.onboardingStep && data.onboardingStep !== 'start')
   );
 };

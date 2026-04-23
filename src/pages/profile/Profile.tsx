@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -60,6 +61,7 @@ const PrivacyToggle = ({ label, icon: Icon, value, onChange, description }: any)
 
 const Profile = () => {
   const { user, userData } = useAuth();
+  const navigate = useNavigate();
   const { unblockUser } = useSafety();
   const [savingProfile, setSavingProfile] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -732,7 +734,7 @@ const Profile = () => {
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
             <button
-              onClick={() => setIsTermsModalOpen(true)}
+              onClick={() => navigate('/terms')}
               className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
             >
               <div className="flex items-center gap-3">
@@ -742,7 +744,7 @@ const Profile = () => {
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
             <button
-              onClick={() => setIsAboutModalOpen(true)}
+              onClick={() => navigate('/about')}
               className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
             >
               <div className="flex items-center gap-3">

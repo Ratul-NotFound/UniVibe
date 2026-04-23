@@ -20,6 +20,8 @@ import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminUsers from '@/pages/admin/Users';
 import AdminReports from '@/pages/admin/Reports';
 import AppLayout from '@/components/layout/AppLayout';
+import About from '@/pages/info/About';
+import Terms from '@/pages/info/Terms';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
@@ -62,6 +64,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          
+          {/* Information Routes (Public) */}
+          <Route path="/about" element={<About />} />
+          <Route path="/terms" element={<Terms />} />
           
           {/* Protected Routes */}
           <Route path="/" element={

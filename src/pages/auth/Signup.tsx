@@ -56,7 +56,7 @@ const Signup = () => {
         name,
         email,
         isVerified: false,
-        isOnboarded: false,
+        onboarded: false,
         role: 'user',
         isBanned: false,
         dailyRequestCount: 0,
@@ -124,7 +124,7 @@ const Signup = () => {
                   {agreedToTerms && <CheckCircle size={12} className="fill-current" />}
                 </button>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-relaxed">
-                   I have read and agree to the <button type="button" onClick={() => setShowTerms(true)} className="text-primary hover:underline">Community Protocol</button> regarding security and behavior.
+                   I have read and agree to the <Link to="/terms" className="text-primary hover:underline">Community Protocol</Link> regarding security and behavior.
                 </p>
              </div>
 

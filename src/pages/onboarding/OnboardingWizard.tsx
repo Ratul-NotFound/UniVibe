@@ -170,7 +170,7 @@ const OnboardingWizard = () => {
           ...formData,
           usernameLower,
           phoneNormalized,
-          isOnboarded: true,
+          onboarded: true,
         }, { merge: true });
       };
 
