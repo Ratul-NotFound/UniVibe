@@ -51,7 +51,7 @@ export const useNotifications = () => {
       }
 
       const token = await getToken(messaging, {
-        vapidKey: 'YOUR_VAPID_KEY_HERE' // This would come from Firebase Console
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
       });
 
       if (token) {
@@ -103,7 +103,6 @@ export const useNotifications = () => {
           toast(item.body, {
             icon: item.type === 'message' ? '💬' : '🔔',
             duration: 4000,
-            onClick: () => item.link && (window.location.href = item.link)
           });
         });
       }
