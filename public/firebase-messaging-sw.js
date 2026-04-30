@@ -3,12 +3,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDKvSsbTDClIe3Q20lFxZxnTN5Sgb1VSQ4",
+  authDomain: "univibe-6d283.firebaseapp.com",
+  projectId: "univibe-6d283",
+  storageBucket: "univibe-6d283.firebasestorage.app",
+  messagingSenderId: "639123400730",
+  appId: "1:639123400730:web:a321f03f162bfb992b89a3"
 });
 
 const messaging = firebase.messaging();

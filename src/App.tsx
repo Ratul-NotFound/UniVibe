@@ -25,6 +25,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import About from '@/pages/info/About';
 import Terms from '@/pages/info/Terms';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import SplashScreen from '@/components/ui/SplashScreen';
 import PwaInstallPrompt from '@/components/layout/PwaInstallPrompt';
@@ -89,6 +90,7 @@ const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = t
 function App() {
   const { user } = useAuth();
   usePresenceTracker();
+  useNotifications();
 
   // Show PWA install prompt once per session after login
   React.useEffect(() => {

@@ -1,162 +1,63 @@
 import { useEffect, useState } from 'react';
-import { getToken, onMessage } from 'firebase/messaging';
 import { messaging, db } from '@/lib/firebase';
+import { getToken, onMessage } from 'firebase/messaging';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
-
-export interface AppNotification {
-  id: string;
-  type?: string;
-  link?: string | null;
-  fromUid?: string | null;
-  title: string;
-  body: string;
-  receivedAt: number;
-  isRead: boolean;
-}
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const [permission, setPermission] = useState<NotificationPermission>('default');
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [permission, setPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
 
-  const isSupported = typeof window !== 'undefined' && 'Notification' in window;
-
-  const enableNotifications = async () => {
-    if (!isSupported) {
-      toast.error('Notifications are not supported on this device.');
-      return 'denied' as NotificationPermission;
-    }
-
-    if (!user || !messaging) {
-      toast.error('Sign in is required to enable notifications.');
-      return 'denied' as NotificationPermission;
-    }
+  const requestPermission = async () => {
+    if (!messaging || typeof Notification === 'undefined') return;
 
     try {
       const status = await Notification.requestPermission();
       setPermission(status);
-
-      if (status !== 'granted') {
-        return status;
-      }
-
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
-      });
-
-      if (token) {
-        await updateDoc(doc(db, 'users', user.uid), {
-          fcmToken: token
+      
+      if (status === 'granted') {
+        const token = await getToken(messaging, {
+          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
         });
+        
+        if (token && user) {
+          // Save token to user profile
+          await updateDoc(doc(db, 'users', user.uid), {
+            fcmTokens: arrayUnion(token),
+            notificationsEnabled: true
+          });
+          console.log('FCM Token registered:', token);
+        }
       }
-
-      return status;
     } catch (error) {
       console.error('Notification permission error:', error);
-      return 'denied' as NotificationPermission;
     }
   };
 
   useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
+    if (!messaging || !user) return;
 
-    const notificationsRef = collection(db, 'notifications');
-    const q = query(notificationsRef, where('toUid', '==', user.uid));
-
-    // Track the last seen max timestamp outside React state to avoid
-    // re-creating the listener (which was causing an infinite loop because
-    // 'notifications' was previously in the dependency array).
-    let lastSeenMax = 0;
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: AppNotification[] = snapshot.docs
-        .map((d) => {
-          const data: any = d.data();
-          return {
-            id: d.id,
-            type: data.type,
-            link: data.link || null,
-            fromUid: data.fromUid || null,
-            title: data.title || 'New notification',
-            body: data.body || 'You have a new update.',
-            receivedAt: data.createdAt?.toMillis?.() || Date.now(),
-            isRead: !!data.isRead,
-          };
-        })
-        .sort((a, b) => b.receivedAt - a.receivedAt)
-        .slice(0, 50);
-
-      // Show toast for new unread notifications that arrived recently.
-      const newItems = list.filter(
-        n => !n.isRead && n.receivedAt > lastSeenMax && n.receivedAt > Date.now() - 5000
-      );
-
-      if (newItems.length > 0) {
-        newItems.forEach(item => {
-          toast(item.body, {
-            icon: item.type === 'message' ? '💬' : '🔔',
-            duration: 4000,
-          });
-        });
-      }
-
-      if (list.length > 0) lastSeenMax = list[0].receivedAt;
-      setNotifications(list);
-    });
-
-    return () => unsubscribe();
-    // Only re-subscribe when the user changes, NOT when notifications change.
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || !messaging || !isSupported) return;
-
-    setPermission(Notification.permission);
-
+    // Handle foreground messages
     const unsubscribe = onMessage(messaging, (payload) => {
-      // FCM foreground handler (backup for the Firestore listener)
+      console.log('Foreground message received:', payload);
       if (payload.notification) {
-        toast.success(payload.notification.body || 'New alert', {
-          icon: '✨',
+        toast(payload.notification.body || 'New notification', {
+          icon: '🔔',
           duration: 4000,
         });
       }
     });
 
+    // Auto-request or refresh token if permission is already granted
+    if (Notification.permission === 'granted') {
+      requestPermission();
+    }
+
     return () => unsubscribe();
-  }, [user, isSupported]);
+  }, [user]);
 
-  const markAllAsRead = async () => {
-    const unread = notifications.filter((item) => !item.isRead);
-    await Promise.all(unread.map((item) => updateDoc(doc(db, 'notifications', item.id), { isRead: true })));
-  };
-
-  const clearNotifications = async () => {
-    await Promise.all(notifications.map((item) => deleteDoc(doc(db, 'notifications', item.id))));
-  };
-
-  const unreadCount = notifications.filter((item) => !item.isRead).length;
-
-  return {
-    permission,
-    enableNotifications,
-    isSupported,
-    notifications,
-    unreadCount,
-    markAllAsRead,
-    clearNotifications,
-  };
+  return { permission, requestPermission };
 };
