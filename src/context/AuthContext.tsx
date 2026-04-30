@@ -69,7 +69,8 @@ const hasCompletedOnboarding = (data: UserData | null): boolean => {
   //    onSnapshot hasn't fired yet but the write already succeeded.
   if (typeof window !== 'undefined' && auth?.currentUser?.uid) {
     const sessionOnboarded = sessionStorage.getItem(`onboarding-complete:${auth.currentUser.uid}`) === '1';
-    if (sessionOnboarded) return true;
+    const localOnboarded = localStorage.getItem(`univibe_onboarded_backup_${auth.currentUser.uid}`) === 'true';
+    if (sessionOnboarded || localOnboarded) return true;
   }
   if (!data) return false;
   // 2. Trust only the canonical onboarded flag written by OnboardingWizard.

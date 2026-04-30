@@ -45,9 +45,9 @@ export const INTEREST_CATEGORIES = {
 };
 
 export const DEPARTMENTS = [
-  'CSE', 'EEE', 'ETE', 'BBA', 'English', 'Law', 'Pharmacy', 'Architecture', 
-  'Textile Engineering', 'Civil Engineering', 'Mechatronics', 'Journalism', 
-  'Innovation & Entrepreneurship'
+  'CSE', 'SWE', 'EEE', 'ETE', 'BBA', 'English', 'Law', 'Pharmacy', 'Architecture', 
+  'Textile Engineering', 'Civil Engineering', 'Journalism', 
+  'Innovation & Entrepreneurship', 'NFE', 'MCT', 'THRM', 'Agreculture', 'ITM', 'CIS'
 ];
 
 export const ACADEMIC_YEARS = ['1st', '2nd', '3rd', '4th', 'Alumni'];

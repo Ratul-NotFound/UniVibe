@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, setDoc, updateDoc, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -227,14 +227,41 @@ const OnboardingWizard = () => {
         return;
       }
 
+      // --- VERIFY THE WRITE ---
+      console.log('[Onboarding] Verifying write persistence...');
+      try {
+        const verifySnap = await getDoc(userRef);
+        if (verifySnap.exists() && verifySnap.data().onboarded === true) {
+          console.log('[Onboarding] ✓ Write verified in Firestore');
+        } else {
+          console.warn('[Onboarding] ⚠ Verification failed! Firestore does not reflect the change yet.');
+          // Even if verification fails (due to latency), we have writeDone=true from the success call.
+          // We will rely on sessionStorage to get them through the ProtectedRoute.
+        }
+      } catch (vErr) {
+        console.error('[Onboarding] Verification read failed:', vErr);
+      }
+
       // --- Success ---
+      // 1. Set sessionStorage for immediate redirect bypass
       sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
+      // 2. Set a temporary flag in localStorage as a secondary backup
+      localStorage.setItem(`univibe_onboarded_backup_${user.uid}`, 'true');
+      
       if (uniqueChecksSkipped) {
         toast.success('Profile saved!');
       } else {
         toast.success('Profile complete! Welcome to UniVibe 🎉');
       }
-      setSaved(true); // useEffect will navigate to '/'
+
+      // 3. Trigger a manual state refresh in the AuthContext by reloading the user token
+      // This forces the Firestore listener to wake up if it's idling.
+      await user.getIdToken(true);
+
+      // 4. Wait a beat for the local cache to settle
+      setTimeout(() => {
+        setSaved(true);
+      }, 500);
 
     } catch (error: any) {
       console.error('[Onboarding] Unexpected error in handleFinish:', error);
