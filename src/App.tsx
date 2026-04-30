@@ -26,6 +26,7 @@ import About from '@/pages/info/About';
 import Terms from '@/pages/info/Terms';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import SplashScreen from '@/components/ui/SplashScreen';
 
 // Placeholder Pages
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
@@ -72,11 +73,7 @@ const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = t
   const { user, userData, loading, isVerified, isOnboarded } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (!user) return <Navigate to="/login" />;
