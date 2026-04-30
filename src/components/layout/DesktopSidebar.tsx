@@ -35,13 +35,14 @@ const DesktopSidebar = () => {
     <aside className="fixed left-0 top-0 hidden lg:flex h-screen w-80 flex-col border-r border-white/5 bg-[#020202] py-10 px-8 z-50">
       {/* Editorial Logo */}
       <div className="mb-14 px-2">
-        <Link to="/" className="group inline-flex flex-col">
-          <span className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none group-hover:text-primary transition-colors">
-            UniVibe
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 mt-1">
-            Terminal v0.2
-          </span>
+        <Link to="/" className="group flex items-center gap-4 px-1">
+          <img src="/univibe-logo.png" alt="UniVibe Logo" className="h-11 w-11 object-contain transition-transform group-hover:scale-105" />
+          <div className="flex h-10 w-[1px] bg-white/10" />
+          <div className="flex flex-col">
+            <span className="text-2xl font-black italic uppercase tracking-tighter text-white leading-none group-hover:text-primary transition-colors">
+              UniVibe
+            </span>
+          </div>
         </Link>
       </div>
 

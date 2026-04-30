@@ -262,7 +262,10 @@ const OnboardingWizard = () => {
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4 py-8 sm:py-12 dark:bg-zinc-950">
-      <div className="mx-auto max-w-2xl pt-12">
+      <div className="mx-auto max-w-2xl pt-8">
+        <div className="mb-8 text-center">
+          <img src="/univibe-logo.png" alt="UniVibe Logo" className="mx-auto h-12 w-12 object-contain" />
+        </div>
         <div className="mb-8 flex items-center justify-between px-4">
           <div className="flex gap-2">
             {[1, 2, 3].map(i => (

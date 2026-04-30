@@ -85,6 +85,7 @@ const Signup = () => {
         className="w-full max-w-md"
       >
         <div className="mb-8 text-center">
+          <img src="/univibe-logo.png" alt="UniVibe Logo" className="mx-auto mb-4 h-16 w-16 object-contain" />
           <h1 className="text-4xl font-black tracking-tight text-primary">UniVibe</h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">Join the DIU student community</p>
         </div>

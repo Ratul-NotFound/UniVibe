@@ -20,6 +20,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore, DEPARTMENTS, ACADEMIC_YEARS, LOOKING_FOR } from '@/lib/matchAlgorithm';
 import ProfileGrid from '@/components/profile/ProfileGrid';
+import ProfileCard from '@/components/profile/ProfileCard';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -303,23 +304,16 @@ const Search = () => {
         </div>
       )}
 
-      <Modal isOpen={!!selectedProfile} onClose={closeProfileModal} title="Profile Actions">
+      <Modal isOpen={!!selectedProfile} onClose={closeProfileModal} title="Synergy Profile">
         {selectedProfile && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-              <div className="h-14 w-14 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-                {selectedProfile.photoURL ? (
-                  <img src={selectedProfile.photoURL} alt={selectedProfile.name || 'Profile'} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-zinc-500 dark:text-zinc-300">
-                    <User size={20} />
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedProfile.name || selectedProfile.username || 'Student'}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-300">{selectedProfile.department || 'Department not set'} • Match {selectedProfile.matchScore || 0}%</p>
-              </div>
+            <div className="h-[450px] sm:h-[550px]">
+              <ProfileCard 
+                user={selectedProfile} 
+                matchScore={selectedProfile.matchScore}
+                className="h-full"
+                isFriend={false}
+              />
             </div>
 
             <p className="text-xs text-zinc-500 dark:text-zinc-300">Send a connection request or skip this profile from search results.</p>

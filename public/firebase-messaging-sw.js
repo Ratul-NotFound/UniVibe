@@ -19,7 +19,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: '/pwa-192x192.png', // Fallback to PWA icon
+    icon: '/univibe-logo.png', // UniVibe flat logo
     data: payload.data
   };
 

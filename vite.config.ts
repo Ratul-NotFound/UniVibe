@@ -22,22 +22,16 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'univibe-logo.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'favicon.svg',
+            src: 'univibe-logo.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'maskable',
-          },
-          {
-            src: 'icons.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any',
           }
         ],
       },

@@ -24,8 +24,10 @@ const MobileHeader = () => {
 
   return (
     <header className="lg:hidden sticky top-0 z-[60] flex h-16 items-center justify-between px-6 bg-[#020202]/95 backdrop-blur-xl border-b border-white/[0.03]">
-      <Link to="/" className="flex items-center gap-2">
-        <span className="text-xl font-black italic uppercase tracking-tighter text-white leading-none">
+      <Link to="/" className="flex items-center gap-3">
+        <img src="/univibe-logo.png" alt="UniVibe Logo" className="h-9 w-9 object-contain" />
+        <div className="h-6 w-[1px] bg-white/10" />
+        <span className="text-lg font-black italic uppercase tracking-tighter text-white leading-none">
           {getPageTitle()}
         </span>
       </Link>
