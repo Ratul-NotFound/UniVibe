@@ -37,6 +37,7 @@ const PwaInstallPrompt: React.FC = () => {
   const [isInstalled, setIsInstalled] = React.useState(false);
   const [canShowPrompt, setCanShowPrompt] = React.useState(false);
   const [showIosHelp, setShowIosHelp] = React.useState(false);
+  const [isForced, setIsForced] = React.useState(false);
 
   const isIos = React.useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -96,6 +97,7 @@ const PwaInstallPrompt: React.FC = () => {
       }
 
       setCanShowPrompt(true);
+      setIsForced(true);
       // If we don't have a prompt yet, we still show the UI to explain how to install (especially for iOS)
     };
 
@@ -145,9 +147,9 @@ const PwaInstallPrompt: React.FC = () => {
   // 1. We have a native prompt (Android/Chrome)
   // 2. It's iOS (Safari)
   // 3. The user forced it from the profile (in which case we show instructions if no prompt)
-  const shouldShow = Boolean(deferredPrompt) || isIos || localStorage.getItem(DISMISSED_AT_KEY) === '0';
+  const shouldShow = Boolean(deferredPrompt) || isIos || isForced;
   
-  if (!shouldShow && !Boolean((window as any).deferredPwaPrompt)) {
+  if (!shouldShow) {
     return null;
   }
 
@@ -192,7 +194,11 @@ const PwaInstallPrompt: React.FC = () => {
             </div>
           ) : (
             <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              On iPhone: tap Share in Safari, then choose Add to Home Screen.
+              {isIos ? (
+                "On iPhone: tap 'Share' in Safari, then choose 'Add to Home Screen'."
+              ) : (
+                "Open your browser menu (usually three dots or an arrow) and look for 'Install' or 'Save to Desktop'."
+              )}
             </div>
           )}
         </div>
