@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, Smartphone, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'react-hot-toast';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -56,10 +57,16 @@ const PwaInstallPrompt: React.FC = () => {
       return;
     }
 
-    // Check for global prompt captured in index.html
-    if ((window as any).deferredPwaPrompt) {
-      setDeferredPrompt((window as any).deferredPwaPrompt);
-    }
+    // Capture prompt from window if it was already caught in index.html
+    const checkGlobalPrompt = () => {
+      if ((window as any).deferredPwaPrompt) {
+        setDeferredPrompt((window as any).deferredPwaPrompt);
+        return true;
+      }
+      return false;
+    };
+
+    checkGlobalPrompt();
 
     const dismissedAt = Number(localStorage.getItem(DISMISSED_AT_KEY) || 0);
     const canRemind = dismissedAt === 0 || Date.now() - dismissedAt > REMIND_AFTER_MS;
@@ -71,9 +78,7 @@ const PwaInstallPrompt: React.FC = () => {
     };
 
     const onPromptReady = () => {
-      if ((window as any).deferredPwaPrompt) {
-        setDeferredPrompt((window as any).deferredPwaPrompt);
-      }
+      checkGlobalPrompt();
     };
 
     const onInstalled = () => {
@@ -86,10 +91,12 @@ const PwaInstallPrompt: React.FC = () => {
     const onForceShow = () => {
       if (isPwaInstalled()) {
         setIsInstalled(true);
+        toast.success('App is already installed!');
         return;
       }
 
       setCanShowPrompt(true);
+      // If we don't have a prompt yet, we still show the UI to explain how to install (especially for iOS)
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -128,12 +135,19 @@ const PwaInstallPrompt: React.FC = () => {
     setDeferredPrompt(null);
   };
 
+  // Only hide if installed. If it's not installed, we show it if we have a prompt,
+  // if it's iOS, or if the user specifically requested it via the Profile section.
   if (isInstalled || !canShowPrompt) {
     return null;
   }
 
-  const shouldShow = Boolean(deferredPrompt) || isIos;
-  if (!shouldShow) {
+  // We show the prompt if:
+  // 1. We have a native prompt (Android/Chrome)
+  // 2. It's iOS (Safari)
+  // 3. The user forced it from the profile (in which case we show instructions if no prompt)
+  const shouldShow = Boolean(deferredPrompt) || isIos || localStorage.getItem(DISMISSED_AT_KEY) === '0';
+  
+  if (!shouldShow && !Boolean((window as any).deferredPwaPrompt)) {
     return null;
   }
 

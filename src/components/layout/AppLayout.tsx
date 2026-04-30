@@ -2,7 +2,6 @@ import React from 'react';
 import BottomNav from './BottomNav';
 import MobileHeader from './MobileHeader';
 import DesktopSidebar from './DesktopSidebar';
-import PwaInstallPrompt from './PwaInstallPrompt';
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -18,7 +17,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </main>
         
-        <PwaInstallPrompt />
+
         <div className="lg:hidden">
           <BottomNav />
         </div>

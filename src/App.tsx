@@ -27,6 +27,7 @@ import Terms from '@/pages/info/Terms';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import SplashScreen from '@/components/ui/SplashScreen';
+import PwaInstallPrompt from '@/components/layout/PwaInstallPrompt';
 
 // Placeholder Pages
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
@@ -86,7 +87,29 @@ const ProtectedRoute = ({ children, requireVerified = true, requireOnboarded = t
 };
 
 function App() {
+  const { user } = useAuth();
   usePresenceTracker();
+
+  // Show PWA install prompt once per session after login
+  React.useEffect(() => {
+    if (user) {
+      const sessionKey = `univibe_prompt_shown_${user.uid}`;
+      const alreadyShown = sessionStorage.getItem(sessionKey);
+      
+      if (!alreadyShown) {
+        // Short delay to let the app settle
+        const timer = setTimeout(() => {
+          import('@/components/layout/PwaInstallPrompt').then(module => {
+            if (!module.isPwaInstalled()) {
+              module.requestPwaInstallPrompt();
+              sessionStorage.setItem(sessionKey, 'true');
+            }
+          });
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
 
   return (
     <Router>
@@ -184,6 +207,7 @@ function App() {
             </ProtectedRoute>
           } />
         </Routes>
+        <PwaInstallPrompt />
       </div>
     </Router>
   );
