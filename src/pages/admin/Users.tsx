@@ -26,7 +26,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), limit(50));
+      const q = query(collection(db, 'users'), limit(200));
       const snapshot = await getDocs(q);
       setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
@@ -39,6 +39,28 @@ const AdminUsers = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleRoleChange = async (uid: string, currentRole: string) => {
+    try {
+      const newRole = currentRole === 'admin' ? 'user' : 'admin';
+      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      
+      // Log the action
+      if (adminUser) {
+        await addDoc(collection(db, 'adminLogs'), {
+          adminUid: adminUser.uid,
+          targetUid: uid,
+          action: `role_${newRole}`,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      toast.success(`User role changed to ${newRole}`);
+      fetchUsers();
+    } catch (error) {
+      toast.error('Action failed');
+    }
+  };
 
   const handleBan = async (uid: string, currentStatus: boolean) => {
     try {
@@ -61,10 +83,11 @@ const AdminUsers = () => {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const nameMatch = (u.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const emailMatch = (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return nameMatch || emailMatch;
+  });
 
   return (
     <div className="space-y-6">
@@ -121,7 +144,7 @@ const AdminUsers = () => {
                 <td className="px-6 py-4 text-sm text-zinc-500">{u.department}</td>
                 <td className="px-6 py-4">
                   <span className={`rounded-lg px-2 py-1 text-[10px] font-bold ${u.role === 'admin' ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : 'bg-zinc-100 text-zinc-600'}`}>
-                    {u.role.toUpperCase()}
+                    {(u.role || 'user').toUpperCase()}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -137,7 +160,9 @@ const AdminUsers = () => {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 text-zinc-400 hover:text-primary"
+                      className={`h-8 w-8 ${u.role === 'admin' ? 'text-primary' : 'text-zinc-400 hover:text-primary'}`}
+                      onClick={() => handleRoleChange(u.id, u.role)}
+                      title={u.role === 'admin' ? "Revoke Admin" : "Make Admin"}
                     >
                       <Shield size={16} />
                     </Button>

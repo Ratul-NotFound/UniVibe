@@ -94,56 +94,80 @@ const OnboardingWizard = () => {
   };
 
   const handleFinish = async () => {
-    if (!user) return;
+    console.log('[Onboarding] handleFinish started');
+    if (!user) {
+      console.error('[Onboarding] No user found in context');
+      return;
+    }
     setLoading(true);
 
     const usernameLower = normalizeUsername(formData.username);
     const phoneNormalized = normalizePhone(formData.phone);
+    console.log('[Onboarding] Data normalized:', { usernameLower, phoneNormalized });
 
     // --- Client-side validation ---
     if (!/^[a-z0-9._]{3,20}$/.test(usernameLower)) {
+      console.warn('[Onboarding] Validation failed: username');
       toast.error('Username must be 3-20 chars: letters, numbers, dot or underscore only.');
       setLoading(false);
       return;
     }
     if (phoneNormalized.length < 10 || phoneNormalized.length > 15) {
+      console.warn('[Onboarding] Validation failed: phone');
       toast.error('Please enter a valid phone number.');
       setLoading(false);
       return;
     }
     if (!isBirthDateValid(formData.birthDate)) {
+      console.warn('[Onboarding] Validation failed: birthDate', formData.birthDate);
       toast.error('Please enter a valid birth date (minimum age 16).');
       setLoading(false);
       return;
     }
+    console.log('[Onboarding] Validation passed');
 
     try {
+      console.log('[Onboarding] Refreshing user token...');
       // Refresh token so Firestore picks up latest email_verified claim.
       await user.reload();
       await user.getIdToken(true);
+      console.log('[Onboarding] Token refreshed');
 
-      // --- Uniqueness checks (skip on permission error, never block) ---
+      // --- Uniqueness checks (skip for super-admin or on permission error) ---
       let uniqueChecksSkipped = false;
-      try {
-        const usersRef = collection(db, 'users');
-        const [usernameSnap, phoneSnap] = await Promise.all([
-          getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
-          getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
-        ]);
-        if (usernameSnap.docs.some(d => d.id !== user.uid)) {
-          toast.error('Username is already taken. Please choose another one.');
-          return;
-        }
-        if (phoneSnap.docs.some(d => d.id !== user.uid)) {
-          toast.error('Phone number is already used by another account.');
-          return;
-        }
-      } catch (checkErr: any) {
-        console.warn('[Onboarding] Uniqueness check skipped:', checkErr?.code);
+      const isSuperAdmin = user.email === 'univibediu@gmail.com';
+      
+      if (isSuperAdmin) {
+        console.log('[Onboarding] Super-admin bypass: skipping uniqueness checks');
         uniqueChecksSkipped = true;
+      } else {
+        try {
+          console.log('[Onboarding] Running uniqueness checks...');
+          const usersRef = collection(db, 'users');
+          const [usernameSnap, phoneSnap] = await Promise.all([
+            getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
+            getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
+          ]);
+          console.log('[Onboarding] Uniqueness checks completed');
+          
+          if (usernameSnap.docs.some(d => d.id !== user.uid)) {
+            toast.error('Username is already taken. Please choose another one.');
+            setLoading(false);
+            return;
+          }
+          if (phoneSnap.docs.some(d => d.id !== user.uid)) {
+            toast.error('Phone number is already used by another account.');
+            setLoading(false);
+            return;
+          }
+        } catch (checkErr: any) {
+          console.warn('[Onboarding] Uniqueness check skipped:', checkErr?.code);
+          uniqueChecksSkipped = true;
+        }
       }
 
       // --- Write profile to Firestore ---
+      console.log('[Onboarding] Preparing profile payload...');
       const profilePayload = {
         ...formData,
         usernameLower,
@@ -152,6 +176,7 @@ const OnboardingWizard = () => {
         updatedAt: new Date().toISOString(),
       };
 
+      console.log('[Onboarding] Saving profile to Firestore...', profilePayload);
       const userRef = doc(db, 'users', user.uid);
       let writeDone = false;
 

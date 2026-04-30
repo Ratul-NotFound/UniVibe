@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   role: 'admin', 
                   email: auth.currentUser.email,
                   name: 'Super Admin',
-                  onboarded: true 
+                  onboarded: false 
                 } as UserData);
               } else {
                 setUserData(null);

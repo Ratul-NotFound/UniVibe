@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Flag, Trash2, CheckCircle, AlertTriangle, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+
+const formatDate = (timestamp: any) => {
+  if (!timestamp) return 'Just now';
+  const date = timestamp.toMillis ? new Date(timestamp.toMillis()) : new Date(timestamp);
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+};
 
 const AdminReports = () => {
   const { user: adminUser } = useAuth();
@@ -51,6 +62,30 @@ const AdminReports = () => {
     }
   };
 
+  const handleDeleteReport = async (reportId: string) => {
+    if (!window.confirm("Are you sure you want to delete this report?")) return;
+    
+    try {
+      await deleteDoc(doc(db, 'reports', reportId));
+      
+      // Log the action
+      if (adminUser) {
+        await addDoc(collection(db, 'adminLogs'), {
+          adminUid: adminUser.uid,
+          targetId: reportId,
+          targetType: 'report',
+          action: 'delete_report',
+          createdAt: serverTimestamp()
+        });
+      }
+
+      toast.success("Report deleted successfully");
+      fetchReports();
+    } catch (error) {
+      toast.error('Failed to delete report');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -91,6 +126,9 @@ const AdminReports = () => {
                         <div className="flex items-center gap-1">
                           <AlertTriangle size={12} /> By: {report.reportedBy.slice(0, 12)}...
                         </div>
+                        <div className="flex items-center gap-1">
+                          <span>{formatDate(report.createdAt)}</span>
+                        </div>
                       </div>
                     </div>
                </div>
@@ -106,7 +144,12 @@ const AdminReports = () => {
                     <CheckCircle size={14} className="mr-2" />
                     Resolve
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-9 w-9 text-zinc-400 hover:text-danger">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-9 w-9 text-zinc-400 hover:text-danger"
+                    onClick={() => handleDeleteReport(report.id)}
+                  >
                     <Trash2 size={16} />
                   </Button>
                </div>
