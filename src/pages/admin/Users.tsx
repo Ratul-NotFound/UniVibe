@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { 
   Search, 
   MoreVertical, 
@@ -22,6 +23,8 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [banModalOpen, setBanModalOpen] = useState(false);
+  const [banningUser, setBanningUser] = useState<any>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -61,25 +64,54 @@ const AdminUsers = () => {
       toast.error('Action failed');
     }
   };
-
-  const handleBan = async (uid: string, currentStatus: boolean) => {
+  const executeBan = async (uid: string, durationStr: string) => {
     try {
-      await updateDoc(doc(db, 'users', uid), { isBanned: !currentStatus });
+      let banUntil = null;
+      let isBanned = true;
       
-      // Log the action
+      if (durationStr === 'unban') {
+        isBanned = false;
+      } else if (durationStr === '24h') {
+        banUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (durationStr === '7d') {
+        banUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (durationStr === '30d') {
+        banUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (durationStr === 'permanent') {
+        banUntil = 'permanent';
+      }
+
+      await updateDoc(doc(db, 'users', uid), { 
+        isBanned, 
+        banUntil 
+      });
+      
       if (adminUser) {
         await addDoc(collection(db, 'adminLogs'), {
           adminUid: adminUser.uid,
           targetUid: uid,
-          action: currentStatus ? 'unban' : 'ban',
+          action: isBanned ? `ban_${durationStr}` : 'unban',
           createdAt: serverTimestamp()
         });
       }
 
-      toast.success(currentStatus ? 'User unbanned' : 'User banned');
+      toast.success(isBanned ? `User banned (${durationStr})` : 'User unbanned');
+      setBanModalOpen(false);
+      setBanningUser(null);
       fetchUsers();
     } catch (error) {
       toast.error('Action failed');
+    }
+  };
+
+  const openBanModal = (u: any) => {
+    if (u.isBanned) {
+      if (window.confirm("Are you sure you want to unban this user?")) {
+        executeBan(u.id, 'unban');
+      }
+    } else {
+      setBanningUser(u);
+      setBanModalOpen(true);
     }
   };
 
@@ -153,7 +185,7 @@ const AdminUsers = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 text-zinc-400 hover:text-danger"
-                      onClick={() => handleBan(u.id, u.isBanned)}
+                      onClick={() => openBanModal(u)}
                     >
                       <Ban size={16} />
                     </Button>
@@ -174,6 +206,21 @@ const AdminUsers = () => {
           </table>
         </div>
       </Card>
+
+      <Modal isOpen={banModalOpen} onClose={() => setBanModalOpen(false)} title="Ban User">
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-500">
+            Select a ban duration for <strong className="text-zinc-900 dark:text-white">{banningUser?.name}</strong>.
+            They will be automatically unbanned after the selected period.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={() => executeBan(banningUser?.id, '24h')}>24 Hours</Button>
+            <Button variant="outline" onClick={() => executeBan(banningUser?.id, '7d')}>7 Days</Button>
+            <Button variant="outline" onClick={() => executeBan(banningUser?.id, '30d')}>30 Days</Button>
+            <Button variant="primary" className="bg-danger border-danger hover:bg-danger/90" onClick={() => executeBan(banningUser?.id, 'permanent')}>Permanent</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

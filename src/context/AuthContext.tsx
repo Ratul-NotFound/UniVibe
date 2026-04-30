@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, onIdTokenChanged } from 'firebase/auth';
 import { auth, db, hasKeys } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 export interface UserData {
   role: 'client' | 'admin' | 'Operator';
@@ -115,10 +115,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data() as UserData;
-              // Hardcoded super-admin email bypass
               if (auth.currentUser?.email === 'univibediu@gmail.com') {
                 data.role = 'admin';
               }
+              
+              // Handle Ban Expiration
+              if (data.isBanned && data.banUntil) {
+                const now = new Date();
+                const banExpiry = data.banUntil === 'permanent' ? null : new Date(data.banUntil);
+                if (banExpiry && now > banExpiry) {
+                  // Ban expired!
+                  data.isBanned = false;
+                  data.banUntil = undefined;
+                  updateDoc(doc(db, 'users', uid), { isBanned: false, banUntil: null }).catch(console.error);
+                }
+              }
+
               setUserData(data);
             } else {
               // If doc doesn't exist but it's the super-admin, provide a stub

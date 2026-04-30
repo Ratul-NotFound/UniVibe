@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, doc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, updateDoc, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -33,7 +33,10 @@ import {
   Coins,
   Info,
   MessageCircle,
-  Zap
+  Zap,
+  HelpCircle,
+  Clock,
+  Wrench
 } from 'lucide-react';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -70,6 +73,10 @@ const Profile = () => {
   const [unblockingUid, setUnblockingUid] = useState<string | null>(null);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [supportForm, setSupportForm] = useState({ title: '', description: '' });
+  const [submittingSupport, setSubmittingSupport] = useState(false);
+  const [userIssues, setUserIssues] = useState<any[]>([]);
   const [profileForm, setProfileForm] = useState({
     username: userData?.username || '',
     phone: userData?.phone || '',
@@ -127,6 +134,25 @@ const Profile = () => {
       photoURL: userData?.photoURL || user?.photoURL || '',
     });
   }, [userData]);
+
+  React.useEffect(() => {
+    if (!user) return;
+    const fetchIssues = async () => {
+      try {
+        const q = query(
+          collection(db, 'supportIssues'),
+          where('userId', '==', user.uid)
+        );
+        const snapshot = await getDocs(q);
+        const issues = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        issues.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        setUserIssues(issues);
+      } catch (error) {
+        console.error("Failed to fetch support issues:", error);
+      }
+    };
+    fetchIssues();
+  }, [user]);
 
   const toggleInterest = (category: string, interest: string) => {
     setProfileForm((prev) => {
@@ -307,6 +333,37 @@ const Profile = () => {
     setUnblockingUid(targetUid);
     await unblockUser(targetUid);
     setUnblockingUid(null);
+  };
+
+  const handleSupportSubmit = async () => {
+    if (!supportForm.title.trim() || !supportForm.description.trim()) {
+      toast.error('Please provide both a title and description.');
+      return;
+    }
+    setSubmittingSupport(true);
+    try {
+      await addDoc(collection(db, 'supportIssues'), {
+        userId: user?.uid,
+        title: supportForm.title.trim(),
+        description: supportForm.description.trim(),
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      toast.success('Issue reported successfully!');
+      setIsSupportModalOpen(false);
+      setSupportForm({ title: '', description: '' });
+      
+      // Refresh issues
+      const q = query(collection(db, 'supportIssues'), where('userId', '==', user?.uid));
+      const snapshot = await getDocs(q);
+      const issues = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      issues.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      setUserIssues(issues);
+    } catch (error) {
+      toast.error('Failed to submit issue');
+    } finally {
+      setSubmittingSupport(false);
+    }
   };
 
   const handleInstallApp = async () => {
@@ -693,6 +750,38 @@ const Profile = () => {
           </Card>
         </section>
 
+        {/* Support Issues Section */}
+        {userIssues.length > 0 && (
+          <section>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">My Support Tickets</label>
+            <div className="space-y-3">
+              {userIssues.map(issue => (
+                <Card key={issue.id} className="p-4 relative overflow-hidden">
+                  {issue.status === 'pending' && <div className="absolute left-0 top-0 h-full w-1 bg-amber-500" />}
+                  {issue.status === 'under_work' && <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />}
+                  {issue.status === 'solved' && <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />}
+                  
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h4 className="font-bold text-sm">{issue.title}</h4>
+                      <p className="text-xs text-zinc-500 line-clamp-2 mt-1">{issue.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        issue.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
+                        issue.status === 'under_work' ? 'bg-blue-500/10 text-blue-500' :
+                        'bg-emerald-500/10 text-emerald-500'
+                      }`}>
+                        {issue.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Other Actions */}
         <section>
           <Card className="p-0 overflow-hidden">
@@ -753,6 +842,16 @@ const Profile = () => {
               </div>
               <ChevronRight size={20} className="text-zinc-300" />
             </button>
+            <button
+              onClick={() => setIsSupportModalOpen(true)}
+              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <HelpCircle size={20} className="text-zinc-500" />
+                <span className="text-sm font-bold">Report an Issue</span>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </button>
             <button 
               onClick={handleLogout}
               className="flex w-full items-center gap-3 p-4 text-danger hover:bg-danger/5"
@@ -772,6 +871,37 @@ const Profile = () => {
       >
         <div className="h-[75vh] md:h-[80vh]">
           <ProfileCard user={previewUser} />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+        title="Report an Issue"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-500">
+            Encountered a bug or have a problem with your account? Let our support team know and we'll look into it!
+          </p>
+          <Input 
+            label="Issue Title" 
+            placeholder="e.g. Can't upload profile picture"
+            value={supportForm.title}
+            onChange={(e) => setSupportForm(prev => ({ ...prev, title: e.target.value }))}
+          />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
+            <textarea
+              className="w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900 h-32"
+              placeholder="Please provide as much detail as possible..."
+              value={supportForm.description}
+              onChange={(e) => setSupportForm(prev => ({ ...prev, description: e.target.value }))}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setIsSupportModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSupportSubmit} isLoading={submittingSupport}>Submit Ticket</Button>
+          </div>
         </div>
       </Modal>
 

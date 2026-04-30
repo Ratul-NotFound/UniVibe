@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   ShieldCheck,
   Menu,
-  X
+  X,
+  Radio
 } from 'lucide-react';
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -31,6 +32,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
     { label: 'Users', icon: Users, path: '/admin/users' },
     { label: 'Reports', icon: Flag, path: '/admin/reports' },
+    { label: 'Content', icon: Radio, path: '/admin/content' },
     { label: 'Logs', icon: History, path: '/admin/logs' },
   ];
 
