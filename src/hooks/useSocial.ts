@@ -163,16 +163,26 @@ export const useSocial = () => {
         }
       }
 
-      // 3. Create New Request
-      await setDoc(ownRequestRef, {
+      // 3. Create or Reset Request
+      const requestData = {
         fromUid: user.uid,
         toUid: targetProfile.id,
-        status: 'pending',
+        status: 'pending' as const,
         fromName: userData.name || 'Someone',
         fromPhotoURL: userData.photoURL || null,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if (!ownSnap.empty) {
+        // Update existing (reset to pending)
+        await updateDoc(doc(db, 'requests', ownSnap.docs[0].id), requestData);
+      } else {
+        // Create new
+        await setDoc(ownRequestRef, {
+          ...requestData,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       // 4. Notify Target
       await createAppNotification({
