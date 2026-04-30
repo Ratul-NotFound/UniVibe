@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   doc, onSnapshot, updateDoc, increment, 
-  setDoc, getDoc, serverTimestamp 
+  getDoc, serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -32,13 +32,11 @@ export const useGamification = () => {
         const data = docSnap.data();
         setUniCoins(data.uniCoins || 0);
         setVibePoints(data.vibePoints || 0);
-      } else {
-        setDoc(userRef, {
-          uniCoins: 100,
-          vibePoints: 0,
-          createdAt: serverTimestamp()
-        }, { merge: true });
       }
+      // If doc doesn't exist yet (race during first sign-in), do NOT create
+      // a stub document — that would overwrite the real profile written by
+      // Signup.tsx and erase fields like 'onboarded'. Just wait for the
+      // next snapshot update which will have the full document.
       setLoading(false);
     }, (error) => {
       console.error("Gamification sync error:", error);

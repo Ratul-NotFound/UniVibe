@@ -18,13 +18,19 @@ const OnboardingWizard = () => {
   const { user, isOnboarded } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  // Local flag set immediately after a successful save so navigation
+  // doesn't wait on the Firestore onSnapshot update — avoiding the
+  // ProtectedRoute race condition that caused the onboarding loop.
+  const [saved, setSaved] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isOnboarded) {
+    // Navigate as soon as either the local write succeeded OR Firestore
+    // confirms onboarded via the context listener (whichever fires first).
+    if (isOnboarded || saved) {
       navigate('/', { replace: true });
     }
-  }, [isOnboarded, navigate]);
+  }, [isOnboarded, saved, navigate]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -200,8 +206,11 @@ const OnboardingWizard = () => {
       if (uniqueChecksSkipped) {
         toast.success('Profile saved.');
       }
-      toast.success('Profile completed!');
-      navigate('/', { replace: true });
+      toast.success('Profile completed! Welcome to UniVibe 🎉');
+      // Set local flag instead of calling navigate() directly.
+      // The useEffect above will trigger navigation immediately,
+      // preventing the ProtectedRoute from seeing stale isOnboarded=false.
+      setSaved(true);
     } catch (error: any) {
       console.error(error);
       if (error?.message === 'ONBOARDING_WRITE_BLOCKED') {
@@ -218,6 +227,19 @@ const OnboardingWizard = () => {
 
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
+
+  // Show a redirect overlay while the saved state propagates — prevents
+  // the user from re-submitting or seeing a flash of incorrect state.
+  if (saved) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-zinc-400">Taking you to UniVibe…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4 py-8 sm:py-12 dark:bg-zinc-950">

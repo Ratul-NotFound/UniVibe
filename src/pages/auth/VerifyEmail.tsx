@@ -17,7 +17,9 @@ const VerifyEmail = () => {
 
   useEffect(() => {
     if (isVerified) {
-      navigate('/');
+      // Already verified — go straight to onboarding (not /, which
+      // would just bounce back to /onboarding anyway if not yet onboarded).
+      navigate('/onboarding');
     }
   }, [isVerified, navigate]);
 
@@ -53,8 +55,8 @@ const VerifyEmail = () => {
 
       if (user.emailVerified) {
         await setDoc(doc(db, 'users', user.uid), { isVerified: true }, { merge: true });
-        toast.success('Email verified. Welcome!');
-        navigate('/');
+        toast.success('Email verified! Let\'s set up your profile.');
+        navigate('/onboarding');
       } else {
         toast.error('Email is not verified yet. Please check your inbox and click the verification link.');
       }

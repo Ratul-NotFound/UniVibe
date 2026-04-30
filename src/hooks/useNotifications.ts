@@ -76,6 +76,11 @@ export const useNotifications = () => {
     const notificationsRef = collection(db, 'notifications');
     const q = query(notificationsRef, where('toUid', '==', user.uid));
 
+    // Track the last seen max timestamp outside React state to avoid
+    // re-creating the listener (which was causing an infinite loop because
+    // 'notifications' was previously in the dependency array).
+    let lastSeenMax = 0;
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: AppNotification[] = snapshot.docs
         .map((d) => {
@@ -94,10 +99,11 @@ export const useNotifications = () => {
         .sort((a, b) => b.receivedAt - a.receivedAt)
         .slice(0, 50);
 
-      // Show toast for new unread notifications that arrived recently
-      const lastKnownMax = notifications.length > 0 ? notifications[0].receivedAt : 0;
-      const newItems = list.filter(n => !n.isRead && n.receivedAt > lastKnownMax && n.receivedAt > Date.now() - 5000);
-      
+      // Show toast for new unread notifications that arrived recently.
+      const newItems = list.filter(
+        n => !n.isRead && n.receivedAt > lastSeenMax && n.receivedAt > Date.now() - 5000
+      );
+
       if (newItems.length > 0) {
         newItems.forEach(item => {
           toast(item.body, {
@@ -107,11 +113,13 @@ export const useNotifications = () => {
         });
       }
 
+      if (list.length > 0) lastSeenMax = list[0].receivedAt;
       setNotifications(list);
     });
 
     return () => unsubscribe();
-  }, [user, notifications]);
+    // Only re-subscribe when the user changes, NOT when notifications change.
+  }, [user]);
 
   useEffect(() => {
     if (!user || !messaging || !isSupported) return;

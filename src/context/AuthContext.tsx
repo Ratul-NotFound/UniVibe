@@ -63,19 +63,18 @@ const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boo
 };
 
 const hasCompletedOnboarding = (data: UserData | null): boolean => {
+  // 1. Check sessionStorage — set immediately by OnboardingWizard on success.
+  //    This resolves the ProtectedRoute race condition where the Firestore
+  //    onSnapshot hasn't fired yet but the write already succeeded.
   if (typeof window !== 'undefined' && auth?.currentUser?.uid) {
     const sessionOnboarded = sessionStorage.getItem(`onboarding-complete:${auth.currentUser.uid}`) === '1';
     if (sessionOnboarded) return true;
   }
   if (!data) return false;
-  // Consider onboarded if either flag is true OR if key profile fields exist
-  // (handles legacy accounts and naming mismatches)
-  return (
-    data.onboarded === true ||
-    (data as any).isOnboarded === true ||
-    !!(data.name && data.department && data.username) ||
-    !!(data.onboardingStep && data.onboardingStep !== 'start')
-  );
+  // 2. Trust only the canonical onboarded flag written by OnboardingWizard.
+  //    Removed the onboardingStep heuristic (false-positive risk) and the
+  //    isOnboarded alias (never written by any code path).
+  return data.onboarded === true;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
