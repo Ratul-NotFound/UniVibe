@@ -45,19 +45,19 @@ const ENGAGEMENT_TYPES = ['Club', 'Lab', 'Job', 'Office', 'Freelance', 'None'];
 const PrivacyToggle = ({ label, icon: Icon, value, onChange, description }: any) => (
   <div className="flex items-center justify-between py-4">
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 dark:bg-zinc-900">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 border border-white/[0.03]">
         <Icon size={20} className="text-zinc-500" />
       </div>
       <div>
-        <p className="text-sm font-bold">{label}</p>
-        <p className="text-[10px] text-zinc-500">{description}</p>
+        <p className="text-sm font-bold text-white">{label}</p>
+        <p className="text-[10px] text-zinc-600">{description}</p>
       </div>
     </div>
     <button 
       onClick={() => onChange(!value)}
-      className={`relative h-6 w-11 rounded-full p-1 transition-colors ${value ? 'bg-primary' : 'bg-zinc-200 dark:bg-zinc-800'}`}
+      className={`relative h-6 w-11 rounded-full p-1 transition-colors ${value ? 'bg-primary' : 'bg-zinc-800'}`}
     >
-      <div className={`h-4 w-4 rounded-full bg-white transition-transform ${value ? 'translate-x-5' : 'translate-x-0'}`} />
+      <div className={`h-4 w-4 rounded-full bg-zinc-200 transition-transform ${value ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
   </div>
 );
@@ -398,31 +398,31 @@ const Profile = () => {
           {/* Avatar Container with Premium Glow */}
           <div className="group relative">
             <div className="absolute -inset-1.5 animate-pulse rounded-full bg-gradient-to-tr from-primary via-secondary to-primary opacity-20 blur-md group-hover:opacity-40 transition-opacity" />
-            <div className="relative h-28 w-28 overflow-hidden rounded-full ring-4 ring-white dark:ring-zinc-900 shadow-2xl">
+            <div className="relative h-28 w-28 overflow-hidden rounded-full ring-4 ring-zinc-950 shadow-2xl">
               <div className="absolute inset-0 rounded-full border-[3px] border-primary/20" />
               {userData?.photoURL ? (
                 <img src={userData.photoURL} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-zinc-50 text-zinc-300 dark:bg-zinc-800">
+                <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-zinc-700">
                   <User size={48} />
                 </div>
               )}
             </div>
             {/* Status Indicator (Always online for self) */}
-            <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-white bg-emerald-500 shadow-lg dark:border-zinc-900" />
+            <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-zinc-950 bg-emerald-500 shadow-lg" />
           </div>
 
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-col items-center gap-1 sm:items-start sm:gap-2">
-              <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">
+              <h1 className="text-3xl font-black tracking-tight text-white">
                 {userData?.name || user?.displayName || 'Student'}
               </h1>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 {userData?.username && (
                   <p className="text-sm font-bold text-primary">@{userData.username}</p>
                 )}
-                <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700 hidden sm:block" />
-                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                <span className="h-1 w-1 rounded-full bg-zinc-800 hidden sm:block" />
+                <p className="text-sm font-medium text-zinc-500">
                   {userData?.department} • {userData?.year} Year
                 </p>
               </div>
@@ -434,25 +434,25 @@ const Profile = () => {
               </div>
 
               <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
-                <div className="flex items-center gap-2 rounded-2xl bg-zinc-50 px-3 py-1.5 dark:bg-zinc-800/50 ring-1 ring-zinc-200/50 dark:ring-white/5 shadow-soft">
+                <div className="flex items-center gap-2 rounded-2xl bg-zinc-900 px-3 py-1.5 ring-1 ring-white/5 shadow-soft">
                   <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Sparkles size={14} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 leading-none">Vibe Points</p>
-                    <p className="text-sm font-black text-zinc-900 dark:text-white line-height-1">
+                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-600 leading-none">Vibe Points</p>
+                    <p className="text-sm font-black text-white line-height-1">
                       {Number((userData as any)?.vibePoints ?? 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-2xl bg-zinc-50 px-3 py-1.5 dark:bg-zinc-800/50 ring-1 ring-zinc-200/50 dark:ring-white/5 shadow-soft">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <div className="flex items-center gap-2 rounded-2xl bg-zinc-900 px-3 py-1.5 ring-1 ring-white/5 shadow-soft">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
                     <Coins size={14} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-400 leading-none">UniCoins</p>
-                    <p className="text-sm font-black text-zinc-900 dark:text-white line-height-1">
+                    <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-600 leading-none">UniCoins</p>
+                    <p className="text-sm font-black text-white line-height-1">
                       {Number((userData as any)?.uniCoins ?? 0).toLocaleString()}
                     </p>
                   </div>
@@ -475,12 +475,13 @@ const Profile = () => {
             </button>
           </div>
           
-          <Card className={`${isEditing ? 'space-y-4' : 'p-0 overflow-hidden'}`}>
+          <Card className={`bg-[#0a0a0a] border-white/[0.05] shadow-none ${isEditing ? 'space-y-4 p-6' : 'p-0 overflow-hidden'}`}>
             {isEditing ? (
               <>
                 <Input
                   label="Username"
                   placeholder="e.g. ratul_09"
+                  className="bg-zinc-900 border-white/5 text-white"
                   value={profileForm.username}
                   onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value }))}
                 />
@@ -489,19 +490,21 @@ const Profile = () => {
                   <Input
                     label="Phone Number"
                     placeholder="e.g. 017XXXXXXXX"
+                    className="bg-zinc-900 border-white/5 text-white"
                     value={profileForm.phone}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
                   />
                   <Input
                     label="Birth Date"
                     type="date"
+                    className="bg-zinc-900 border-white/5 text-white"
                     value={profileForm.birthDate}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, birthDate: e.target.value }))}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Gender</label>
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">Gender</label>
                   <div className="flex flex-wrap gap-2">
                     {GENDERS.map((g) => (
                       <button
@@ -514,7 +517,7 @@ const Profile = () => {
                             photoURL: nextAvatars.includes(prev.photoURL) ? prev.photoURL : nextAvatars[0],
                           }));
                         }}
-                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.gender === g ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.gender === g ? 'bg-primary text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-white/5'}`}
                       >
                         {g}
                       </button>
@@ -524,13 +527,13 @@ const Profile = () => {
 
                 {profileForm.gender && (
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Choose Avatar</label>
+                    <label className="mb-2 block text-sm font-medium text-zinc-400">Choose Avatar</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                       {avatarOptions.map((avatar) => (
                         <button
                           key={avatar}
                           onClick={() => setProfileForm((prev) => ({ ...prev, photoURL: avatar }))}
-                          className={`h-16 w-16 mx-auto shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'}`}
+                          className={`h-16 w-16 mx-auto shrink-0 overflow-hidden rounded-full border-2 transition-all ${profileForm.photoURL === avatar ? 'border-primary ring-2 ring-primary/30' : 'border-zinc-800 hover:border-zinc-700'}`}
                         >
                           <img src={avatar} alt="avatar option" className="h-full w-full object-cover" />
                         </button>
@@ -540,9 +543,9 @@ const Profile = () => {
                 )}
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department</label>
+                  <label className="block text-sm font-medium text-zinc-400">Department</label>
                   <select
-                    className="w-full rounded-card border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-900"
+                    className="w-full rounded-card border border-white/5 bg-zinc-900 p-2.5 text-zinc-300"
                     value={profileForm.department}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, department: e.target.value }))}
                   >
@@ -552,13 +555,13 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Academic Year</label>
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">Academic Year</label>
                   <div className="flex flex-wrap gap-2">
                     {ACADEMIC_YEARS.map((y) => (
                       <button
                         key={y}
                         onClick={() => setProfileForm((prev) => ({ ...prev, year: y }))}
-                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.year === y ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.year === y ? 'bg-primary text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-white/5'}`}
                       >
                         {y}
                       </button>
@@ -567,13 +570,13 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Looking For</label>
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">Looking For</label>
                   <div className="grid grid-cols-2 gap-2">
                     {LOOKING_FOR.map((item) => (
                       <button
                         key={item.value}
                         onClick={() => setProfileForm((prev) => ({ ...prev, lookingFor: item.value }))}
-                        className={`rounded-card border p-3 text-center text-sm font-medium transition-colors ${profileForm.lookingFor === item.value ? 'border-primary bg-primary/5 text-primary' : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400'}`}
+                        className={`rounded-card border p-3 text-center text-sm font-medium transition-colors ${profileForm.lookingFor === item.value ? 'border-primary bg-primary/5 text-primary' : 'border-white/5 text-zinc-600 hover:border-zinc-800'}`}
                       >
                         {item.label}
                       </button>
@@ -582,10 +585,10 @@ const Profile = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Bio</label>
+                  <label className="block text-sm font-medium text-zinc-400">Bio</label>
                   <textarea
                     placeholder="Share a bit about yourself..."
-                    className="h-24 w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900"
+                    className="h-24 w-full rounded-card border border-white/5 bg-zinc-900 p-3 text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-primary"
                     value={profileForm.bio}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, bio: e.target.value }))}
                   />
@@ -607,13 +610,13 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Engagement Type</label>
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">Engagement Type</label>
                   <div className="flex flex-wrap gap-2">
                     {ENGAGEMENT_TYPES.map((type) => (
                       <button
                         key={type}
                         onClick={() => setProfileForm((prev) => ({ ...prev, engagementType: type }))}
-                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.engagementType === type ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                        className={`rounded-pill px-4 py-2 text-sm font-medium transition-colors ${profileForm.engagementType === type ? 'bg-primary text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-white/5'}`}
                       >
                         {type}
                       </button>
@@ -631,11 +634,11 @@ const Profile = () => {
                 )}
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Interests (select at least 5)</label>
+                  <label className="mb-2 block text-sm font-medium text-zinc-400">Interests (select at least 5)</label>
                   <div className="max-h-64 space-y-4 overflow-y-auto pr-2">
                     {Object.entries(INTEREST_CATEGORIES).map(([catId, catInfo]) => (
                       <div key={catId}>
-                        <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">{catId}</h4>
+                        <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-700">{catId}</h4>
                         <div className="flex flex-wrap gap-2">
                           {catInfo.interests.map((interest) => {
                             const isSelected = profileForm.interests[catId]?.includes(interest);
@@ -643,7 +646,7 @@ const Profile = () => {
                               <button
                                 key={interest}
                                 onClick={() => toggleInterest(catId, interest)}
-                                className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-all ${isSelected ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 dark:ring-offset-zinc-950' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'}`}
+                                className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-all ${isSelected ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 ring-offset-zinc-950' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-white/5'}`}
                               >
                                 {interest}
                               </button>
@@ -664,21 +667,21 @@ const Profile = () => {
                 </div>
               </>
             ) : (
-              <div className="divide-y divide-zinc-50 dark:divide-zinc-800">
+              <div className="divide-y divide-white/[0.03]">
                 <div className="p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Bio</p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 italic">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">Bio</p>
+                  <p className="text-sm text-zinc-400 line-clamp-3 italic">
                     {userData?.bio || "No bio set yet. Click Edit Profile to tell others about yourself!"}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-zinc-50 dark:divide-zinc-800">
+                <div className="grid grid-cols-2 divide-x divide-white/[0.03]">
                   <div className="p-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Looking For</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">Looking For</p>
                     <p className="text-xs font-bold text-primary">{userData?.lookingFor || "N/A"}</p>
                   </div>
                   <div className="p-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Interests</p>
-                    <p className="text-xs font-bold">{Object.values(userData?.interests || {}).flat().length} Selected</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">Interests</p>
+                    <p className="text-xs font-bold text-zinc-300">{Object.values(userData?.interests || {}).flat().length} Selected</p>
                   </div>
                 </div>
                 <button 
@@ -694,8 +697,8 @@ const Profile = () => {
 
         {/* Account Settings */}
         <section>
-          <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">Account</label>
-          <Card className="divide-y divide-zinc-50 p-0 dark:divide-zinc-800">
+          <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-600">Account</label>
+          <Card className="divide-y divide-white/[0.03] p-0 bg-[#0a0a0a] border-white/[0.05] shadow-none overflow-hidden">
             <PrivacyToggle 
               label="Ghost Mode" 
               icon={EyeOff}
@@ -715,8 +718,8 @@ const Profile = () => {
 
         {/* Privacy Controls */}
         <section>
-          <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">Privacy Controls</label>
-          <Card className="divide-y divide-zinc-50 p-0 dark:divide-zinc-800">
+          <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-600">Privacy Controls</label>
+          <Card className="divide-y divide-white/[0.03] p-0 bg-[#0a0a0a] border-white/[0.05] shadow-none overflow-hidden">
             <PrivacyToggle 
               label="Phone Number" 
               icon={Smartphone}
@@ -740,7 +743,7 @@ const Profile = () => {
             <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-zinc-400">My Support Tickets</label>
             <div className="space-y-3">
               {userIssues.map(issue => (
-                <Card key={issue.id} className="p-4 relative overflow-hidden">
+                <Card key={issue.id} className="p-4 relative overflow-hidden bg-[#0a0a0a] border-white/[0.05] shadow-none">
                   {issue.status === 'pending' && <div className="absolute left-0 top-0 h-full w-1 bg-amber-500" />}
                   {issue.status === 'under_work' && <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />}
                   {issue.status === 'solved' && <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />}
@@ -768,80 +771,80 @@ const Profile = () => {
 
         {/* Other Actions */}
         <section>
-          <Card className="p-0 overflow-hidden">
+          <Card className="p-0 overflow-hidden bg-[#0a0a0a] border-white/[0.05] shadow-none">
             <button
               onClick={() => setIsPreviewOpen(true)}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Eye size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">View My Profile</span>
+                <span className="text-sm font-bold text-white">View My Profile</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
-            <button className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+            <button className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-3">
                 <Bell size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">Notifications</span>
+                <span className="text-sm font-bold text-white">Notifications</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button
               onClick={handleInstallApp}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Download size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">Install App</span>
+                <span className="text-sm font-bold text-white">Install App</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button
               onClick={() => setIsSafetyCenterOpen(true)}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Shield size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">Safety Center</span>
+                <span className="text-sm font-bold text-white">Safety Center</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button
               onClick={() => navigate('/terms')}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Shield size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">Terms & Community Protocol</span>
+                <span className="text-sm font-bold text-white">Terms & Community Protocol</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button
               onClick={() => navigate('/about')}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Info size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">About UniVibe</span>
+                <span className="text-sm font-bold text-white">About UniVibe</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button
               onClick={() => setIsSupportModalOpen(true)}
-              className="flex w-full items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              className="flex w-full items-center justify-between p-4 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <HelpCircle size={20} className="text-zinc-500" />
-                <span className="text-sm font-bold">Report an Issue</span>
+                <span className="text-sm font-bold text-white">Report an Issue</span>
               </div>
-              <ChevronRight size={20} className="text-zinc-300" />
+              <ChevronRight size={20} className="text-zinc-800" />
             </button>
             <button 
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 p-4 text-danger hover:bg-danger/5"
+              className="flex w-full items-center gap-3 p-4 text-rose-500 hover:bg-rose-500/5 transition-colors"
             >
               <LogOut size={20} />
-              <span className="text-sm font-black">Sign Out</span>
+              <span className="text-sm font-black uppercase tracking-widest">Sign Out</span>
             </button>
           </Card>
         </section>
@@ -876,7 +879,7 @@ const Profile = () => {
           <div className="space-y-2">
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
             <textarea
-              className="w-full rounded-card border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-800 dark:bg-zinc-900 h-32"
+              className="w-full rounded-card border border-white/5 bg-[#0a0a0a] p-3 text-sm text-zinc-300 focus:outline-none focus:ring-2 focus:ring-primary h-32"
               placeholder="Please provide as much detail as possible..."
               value={supportForm.description}
               onChange={(e) => setSupportForm(prev => ({ ...prev, description: e.target.value }))}
@@ -891,8 +894,8 @@ const Profile = () => {
 
       <Modal isOpen={isSafetyCenterOpen} onClose={() => setIsSafetyCenterOpen(false)} title="Safety Center">
         <div className="space-y-5">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/40">
-            <p className="flex items-start gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
+            <p className="flex items-start gap-2 text-xs font-medium text-amber-500/80">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               If someone makes you uncomfortable, block and report from Discovery/Chat immediately.
             </p>
@@ -921,8 +924,8 @@ const Profile = () => {
             {userData?.blockedUsers?.length ? (
               <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
                 {userData.blockedUsers.map((uid) => (
-                  <div key={uid} className="flex items-center justify-between rounded-xl border border-zinc-200 p-2 dark:border-zinc-700">
-                    <span className="truncate text-xs text-zinc-600 dark:text-zinc-300">{uid}</span>
+                  <div key={uid} className="flex items-center justify-between rounded-xl border border-white/5 bg-zinc-900/50 p-2">
+                    <span className="truncate text-xs text-zinc-500">{uid}</span>
                     <Button
                       size="sm"
                       variant="outline"
