@@ -510,8 +510,8 @@ const Matches = () => {
                       <div>
                         <p className="text-base font-black italic uppercase tracking-tight text-white/50">{req.otherUser?.name || 'Student'}</p>
                         <div className="flex items-center gap-2">
-                          <div className="h-1 w-1 animate-pulse rounded-full bg-amber-500" />
-                          <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Transmitting Spark...</p>
+                          <div className="h-1 w-1 rounded-full bg-zinc-600" />
+                          <p className="text-[8px] text-zinc-700 font-black uppercase tracking-widest">Signal Pending</p>
                         </div>
                       </div>
                     </div>
@@ -542,7 +542,7 @@ const Matches = () => {
             <ProfileCard 
               user={selectedUserForProfile} 
               className="h-full"
-              isFriend={true}
+              isFriend={matches.some(m => m.otherUserId === selectedUserForProfile.id)}
             />
           </div>
         )}
