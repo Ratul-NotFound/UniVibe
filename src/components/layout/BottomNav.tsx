@@ -1,18 +1,21 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Heart, MessageCircle, User, Users, Bell } from 'lucide-react';
+import { Home, Search, Heart, MessageCircle, User, Users, Bell, Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useAuth } from '@/context/AuthContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 const BottomNav = () => {
+  const { userData } = useAuth();
+  
   const navItems = [
     { icon: Home, path: '/', label: 'Home' },
-    { icon: Search, path: '/search', label: 'Search' },
+    { icon: userData?.role === 'admin' ? Zap : Search, path: userData?.role === 'admin' ? '/admin' : '/search', label: userData?.role === 'admin' ? 'Command' : 'Search' },
     { icon: Users, path: '/matches', label: 'Circle' },
     { icon: MessageCircle, path: '/chat', label: 'Inbox' },
     { icon: User, path: '/profile', label: 'Profile' },

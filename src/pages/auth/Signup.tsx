@@ -24,7 +24,8 @@ const Signup = () => {
     e.preventDefault();
     
     // Domain check
-    if (!email.endsWith('@diu.edu.bd')) {
+    const isSuperAdmin = email.toLowerCase() === 'univibediu@gmail.com';
+    if (!email.endsWith('@diu.edu.bd') && !isSuperAdmin) {
       toast.error('Only @diu.edu.bd emails are allowed!');
       return;
     }

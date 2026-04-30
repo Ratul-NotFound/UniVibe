@@ -59,6 +59,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const isEligibleDiuSession = (user: { email?: string | null; emailVerified?: boolean } | null): boolean => {
   if (!user?.email) return false;
+  if (user.email === 'univibediu@gmail.com') return true;
   return /@diu\.edu\.bd$/i.test(user.email) && user.emailVerified === true;
 };
 
@@ -113,9 +114,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           doc(db, 'users', uid),
           (docSnap) => {
             if (docSnap.exists()) {
-              setUserData(docSnap.data() as UserData);
+              const data = docSnap.data() as UserData;
+              // Hardcoded super-admin email bypass
+              if (auth.currentUser?.email === 'univibediu@gmail.com') {
+                data.role = 'admin';
+              }
+              setUserData(data);
             } else {
-              setUserData(null);
+              // If doc doesn't exist but it's the super-admin, provide a stub
+              if (auth.currentUser?.email === 'univibediu@gmail.com') {
+                setUserData({ 
+                  role: 'admin', 
+                  email: auth.currentUser.email,
+                  name: 'Super Admin',
+                  onboarded: true 
+                } as UserData);
+              } else {
+                setUserData(null);
+              }
             }
             setLoading(false);
           },
@@ -176,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     userData,
     loading,
-    isVerified: user?.emailVerified || false,
+    isVerified: (user?.emailVerified || user?.email === 'univibediu@gmail.com') || false,
     isOnboarded: hasCompletedOnboarding(userData),
   };
 

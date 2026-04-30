@@ -19,6 +19,7 @@ import AdminLayout from '@/pages/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminUsers from '@/pages/admin/Users';
 import AdminReports from '@/pages/admin/Reports';
+import AdminLogs from '@/pages/admin/Logs';
 import AppLayout from '@/components/layout/AppLayout';
 import About from '@/pages/info/About';
 import Terms from '@/pages/info/Terms';
@@ -142,7 +143,7 @@ function App() {
           } />
           <Route path="/admin/logs" element={
             <ProtectedRoute requireRole="admin">
-              <AdminLayout><div className="p-8">Admin Logs coming soon...</div></AdminLayout>
+              <AdminLayout><AdminLogs /></AdminLayout>
             </ProtectedRoute>
           } />
         </Routes>

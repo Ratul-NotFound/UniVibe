@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,6 +18,7 @@ import {
 import { toast } from 'react-hot-toast';
 
 const AdminUsers = () => {
+  const { user: adminUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +43,17 @@ const AdminUsers = () => {
   const handleBan = async (uid: string, currentStatus: boolean) => {
     try {
       await updateDoc(doc(db, 'users', uid), { isBanned: !currentStatus });
+      
+      // Log the action
+      if (adminUser) {
+        await addDoc(collection(db, 'adminLogs'), {
+          adminUid: adminUser.uid,
+          targetUid: uid,
+          action: currentStatus ? 'unban' : 'ban',
+          createdAt: serverTimestamp()
+        });
+      }
+
       toast.success(currentStatus ? 'User unbanned' : 'User banned');
       fetchUsers();
     } catch (error) {

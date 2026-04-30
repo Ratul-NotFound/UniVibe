@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Flag, Trash2, CheckCircle, AlertTriangle, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const AdminReports = () => {
+  const { user: adminUser } = useAuth();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +32,18 @@ const AdminReports = () => {
   const handleStatusUpdate = async (reportId: string, status: string) => {
     try {
       await updateDoc(doc(db, 'reports', reportId), { status });
+      
+      // Log the action
+      if (adminUser) {
+        await addDoc(collection(db, 'adminLogs'), {
+          adminUid: adminUser.uid,
+          targetId: reportId,
+          targetType: 'report',
+          action: `status_${status}`,
+          createdAt: serverTimestamp()
+        });
+      }
+
       toast.success(`Report marked as ${status}`);
       fetchReports();
     } catch (error) {

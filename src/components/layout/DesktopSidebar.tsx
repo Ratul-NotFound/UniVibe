@@ -27,6 +27,10 @@ const DesktopSidebar = () => {
     { icon: User, path: '/profile', label: 'Profile', desc: 'Personal Profile' },
   ];
 
+  if (userData?.role === 'admin') {
+    navItems.push({ icon: Zap, path: '/admin', label: 'Command', desc: 'Admin Console' });
+  }
+
   return (
     <aside className="fixed left-0 top-0 hidden lg:flex h-screen w-80 flex-col border-r border-white/5 bg-[#020202] py-10 px-8 z-50">
       {/* Editorial Logo */}
