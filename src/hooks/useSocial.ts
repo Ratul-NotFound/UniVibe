@@ -2,8 +2,13 @@ import { useState } from 'react';
 import {
   doc,
   getDoc,
+  getDocs,
+  query,
+  where,
+  limit,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   collection,
 } from 'firebase/firestore';
@@ -82,6 +87,12 @@ export const useSocial = () => {
         metadata: { chatId },
       });
 
+      // 4. Activity Fan-out
+      await postCircleActivity(user, userData, {
+        type: 'joined',
+        content: `connected with ${requesterUser.name || 'a student'}`,
+      });
+
       toast.success("It's a Match!", { icon: '💖' });
       return { success: true, isMatch: true };
     } catch (err: any) {
@@ -120,16 +131,28 @@ export const useSocial = () => {
       const reciprocalRequestRef = doc(db, 'requests', getRequestDocId(targetProfile.id, user.uid));
 
       // 1. Check for reciprocal request (Auto-Match Logic)
-      const reciprocalSnap = await getDoc(reciprocalRequestRef);
-      if (reciprocalSnap.exists() && reciprocalSnap.data()?.status === 'pending') {
+      const reciprocalSnap = await getDocs(query(
+        collection(db, 'requests'),
+        where('fromUid', '==', targetProfile.id),
+        where('toUid', '==', user.uid),
+        limit(1)
+      ));
+      
+      if (!reciprocalSnap.empty && reciprocalSnap.docs[0].data()?.status === 'pending') {
         // AUTO-MATCH!
         return await acceptRequest({ fromUid: targetProfile.id, toUid: user.uid });
       }
 
       // 2. Check if already requested or matched
-      const ownSnap = await getDoc(ownRequestRef);
-      if (ownSnap.exists()) {
-        const status = ownSnap.data()?.status;
+      const ownSnap = await getDocs(query(
+        collection(db, 'requests'),
+        where('fromUid', '==', user.uid),
+        where('toUid', '==', targetProfile.id),
+        limit(1)
+      ));
+
+      if (!ownSnap.empty) {
+        const status = ownSnap.docs[0].data()?.status;
         if (status === 'pending') {
           toast('Request already pending.', { icon: '⏳' });
           return { success: true, pending: true };
@@ -181,6 +204,30 @@ export const useSocial = () => {
     }
   };
 
+  const unfriend = async (targetUid: string) => {
+    if (!user) return { success: false };
+    try {
+      setActionLoading(true);
+      const matchDocId = getMatchDocId(user.uid, targetUid);
+      
+      // Delete the match and BOTH directions of requests to fully reset state
+      await Promise.allSettled([
+        deleteDoc(doc(db, 'matches', matchDocId)),
+        deleteDoc(doc(db, 'requests', getRequestDocId(user.uid, targetUid))),
+        deleteDoc(doc(db, 'requests', getRequestDocId(targetUid, user.uid)))
+      ]);
+
+      toast.success('Connection removed');
+      return { success: true };
+    } catch (err) {
+      console.error('Unfriend failed:', err);
+      toast.error('Failed to remove connection');
+      return { success: false };
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const pass = async (targetUid: string) => {
     if (!user) return;
     try {
@@ -203,6 +250,7 @@ export const useSocial = () => {
     connect,
     pass,
     acceptRequest,
+    unfriend,
     actionLoading
   };
 };

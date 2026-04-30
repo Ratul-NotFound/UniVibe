@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSafety } from '@/hooks/useSafety';
 import { useMatches } from '@/hooks/useMatches';
 import { useAuth } from '@/context/AuthContext';
+import { useSocial } from '@/hooks/useSocial';
+import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
 
 interface ProfileCardProps {
@@ -22,11 +24,14 @@ interface ProfileCardProps {
 const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className, isFriend }) => {
   const { user: currentUser } = useAuth();
   const { blockUser, reportUser } = useSafety();
-  const { unfriend } = useMatches();
+  const { unfriend, incomingRequests, outgoingRequests } = useMatches();
+  const { connect, acceptRequest, actionLoading } = useSocial();
   const [activeTab, setActiveTab] = useState<'intel' | 'pulse'>('intel');
   const [showActions, setShowActions] = useState(false);
   
   const isMe = currentUser?.uid === user.id;
+  const isIncoming = incomingRequests.find(r => r.fromUid === user.id);
+  const isOutgoing = outgoingRequests.find(r => r.toUid === user.id);
   const interestCount = Object.values(user.interests || {}).flat().length;
 
   const getAge = (birthDate?: string) => {
@@ -342,9 +347,38 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user, matchScore, className, 
                   <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">
                     Personal broadcasts and campus activity are visible to synergy connections only.
                   </p>
-                  <button className="mt-8 px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-                    Send Synergy Spark
-                  </button>
+                  
+                  {!isMe && (
+                    <div className="mt-8">
+                      {isFriend ? (
+                        <div className="text-[10px] font-black uppercase tracking-widest text-primary">Already Connected</div>
+                      ) : isIncoming ? (
+                        <Button 
+                          onClick={() => acceptRequest(isIncoming)}
+                          disabled={actionLoading}
+                          className="px-8 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                          {actionLoading ? 'Connecting...' : 'Accept Synergy Request'}
+                        </Button>
+                      ) : isOutgoing ? (
+                        <Button 
+                          disabled 
+                          variant="ghost"
+                          className="px-8 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 text-zinc-500"
+                        >
+                          Request Pending...
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => connect(user)}
+                          disabled={actionLoading}
+                          className="px-8 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
+                        >
+                          {actionLoading ? 'Transmitting...' : 'Send Synergy Spark'}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>

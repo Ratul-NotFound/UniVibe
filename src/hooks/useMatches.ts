@@ -27,7 +27,11 @@ const buildOtherUser = async (uid: string) => {
 
 export const useMatches = () => {
   const { user, userData } = useAuth();
-  const { acceptRequest: socialAccept } = useSocial();
+  const { 
+    acceptRequest: socialAccept, 
+    unfriend: socialUnfriend, 
+    actionLoading 
+  } = useSocial();
   const [matches, setMatches] = useState<any[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
@@ -196,19 +200,7 @@ export const useMatches = () => {
   };
 
   const unfriend = async (otherUserId: string) => {
-    if (!user) return;
-    try {
-      const matchId = getMatchDocId(user.uid, otherUserId);
-      await deleteDoc(doc(db, 'matches', matchId));
-      
-      // Cleanup RTDB presence if needed, though usually handled by presence
-      // Just clear the chat ID link if stored
-      
-      toast.success('Connection removed');
-    } catch (error) {
-      console.error('Unfriend failed:', error);
-      toast.error('Failed to unfriend');
-    }
+    return await socialUnfriend(otherUserId);
   };
 
   return {
@@ -220,5 +212,6 @@ export const useMatches = () => {
     declineRequest,
     cancelRequest,
     unfriend,
+    actionLoading
   };
 };

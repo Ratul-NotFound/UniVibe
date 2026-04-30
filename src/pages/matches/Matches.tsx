@@ -104,6 +104,7 @@ const Matches = () => {
     acceptRequest,
     declineRequest,
     cancelRequest,
+    actionLoading,
   } = useMatches();
   const { user, userData } = useAuth();
   const navigate = useNavigate();
@@ -461,8 +462,13 @@ const Matches = () => {
                        <Button size="sm" variant="ghost" className="rounded-xl h-10 w-10 p-0 hover:bg-white/5" onClick={() => declineRequest(req)}>
                          <X size={18} className="text-zinc-600" />
                        </Button>
-                       <Button size="sm" className="rounded-xl px-5 h-10 text-[10px] font-black uppercase tracking-widest" onClick={() => acceptRequest(req)}>
-                         Accept
+                       <Button 
+                         size="sm" 
+                         disabled={actionLoading}
+                         className="rounded-xl px-5 h-10 text-[10px] font-black uppercase tracking-widest" 
+                         onClick={() => acceptRequest(req)}
+                       >
+                         {actionLoading ? 'Connecting...' : 'Accept'}
                        </Button>
                     </div>
                   </div>
