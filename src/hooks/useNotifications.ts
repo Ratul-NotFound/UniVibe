@@ -71,19 +71,42 @@ export const useNotifications = () => {
 
     const q = query(
       collection(db, 'notifications'),
-      where('toUid', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('toUid', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        receivedAt: doc.data().createdAt?.toDate() || new Date()
-      })) as AppNotification[];
+      const notifs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let receivedAt = new Date();
+        
+        if (data.createdAt) {
+          if (typeof data.createdAt.toDate === 'function') {
+            receivedAt = data.createdAt.toDate();
+          } else if (data.createdAt instanceof Date) {
+            receivedAt = data.createdAt;
+          } else if (typeof data.createdAt === 'number') {
+            receivedAt = new Date(data.createdAt);
+          }
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          receivedAt
+        };
+      }) as AppNotification[];
       
+      // Sort manually in memory if index isn't ready
+      notifs.sort((a, b) => {
+        const timeA = a.receivedAt?.getTime() || 0;
+        const timeB = b.receivedAt?.getTime() || 0;
+        return timeB - timeA;
+      });
+
       setNotifications(notifs);
       setUnreadCount(notifs.filter(n => !n.isRead).length);
+    }, (error) => {
+      console.error('Notification snapshot error:', error);
     });
 
     // Foreground Push listener
