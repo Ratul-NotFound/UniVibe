@@ -174,26 +174,41 @@ export const useSocial = () => {
       };
 
       if (!ownSnap.empty) {
-        // Update existing (reset to pending)
-        await updateDoc(doc(db, 'requests', ownSnap.docs[0].id), requestData);
+        try {
+          console.log('[Onboarding] Updating existing request:', ownSnap.docs[0].id);
+          await updateDoc(doc(db, 'requests', ownSnap.docs[0].id), requestData);
+        } catch (updateErr) {
+          console.error('[Onboarding] Update request failed:', updateErr);
+          throw updateErr;
+        }
       } else {
-        // Create new
-        await setDoc(ownRequestRef, {
-          ...requestData,
-          createdAt: serverTimestamp(),
-        });
+        try {
+          console.log('[Onboarding] Creating new request:', ownRequestRef.id);
+          await setDoc(ownRequestRef, {
+            ...requestData,
+            createdAt: serverTimestamp(),
+          });
+        } catch (createErr) {
+          console.error('[Onboarding] Create request failed:', createErr);
+          throw createErr;
+        }
       }
 
       // 4. Notify Target
-      await createAppNotification({
-        toUid: targetProfile.id,
-        fromUid: user.uid,
-        type: 'request',
-        title: 'New connection request',
-        body: `${userData.name || 'A student'} wants to connect.`,
-        link: '/matches',
-        metadata: { fromUid: user.uid },
-      });
+      try {
+        console.log('[Onboarding] Sending notification to:', targetProfile.id);
+        await createAppNotification({
+          toUid: targetProfile.id,
+          fromUid: user.uid,
+          type: 'request',
+          title: 'New connection request',
+          body: `${userData.name || 'A student'} wants to connect.`,
+          link: '/matches',
+          metadata: { fromUid: user.uid },
+        });
+      } catch (notiErr) {
+        console.warn('[Onboarding] Notification failed (non-fatal):', notiErr);
+      }
 
       toast.success(`Request sent to ${targetProfile.name || 'student'}!`, { icon: '📩' });
       return { success: true, requestSent: true };
