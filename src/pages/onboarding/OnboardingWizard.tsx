@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDocs, limit, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -96,130 +96,124 @@ const OnboardingWizard = () => {
   const handleFinish = async () => {
     if (!user) return;
     setLoading(true);
+
+    const usernameLower = normalizeUsername(formData.username);
+    const phoneNormalized = normalizePhone(formData.phone);
+
+    // --- Client-side validation ---
+    if (!/^[a-z0-9._]{3,20}$/.test(usernameLower)) {
+      toast.error('Username must be 3-20 chars: letters, numbers, dot or underscore only.');
+      setLoading(false);
+      return;
+    }
+    if (phoneNormalized.length < 10 || phoneNormalized.length > 15) {
+      toast.error('Please enter a valid phone number.');
+      setLoading(false);
+      return;
+    }
+    if (!isBirthDateValid(formData.birthDate)) {
+      toast.error('Please enter a valid birth date (minimum age 16).');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const usernameLower = normalizeUsername(formData.username);
-      const phoneNormalized = normalizePhone(formData.phone);
-
-      if (!/^[a-z0-9._]{3,20}$/.test(usernameLower)) {
-        toast.error('Username must be 3-20 chars and use only letters, numbers, dot, or underscore.');
-        return;
-      }
-
-      if (phoneNormalized.length < 10 || phoneNormalized.length > 15) {
-        toast.error('Please enter a valid phone number.');
-        return;
-      }
-
-      if (!isBirthDateValid(formData.birthDate)) {
-        toast.error('Please provide a valid birth date (minimum age 16).');
-        return;
-      }
-
-      // Ensure latest auth claims (including email verification) are reflected before write.
+      // Refresh token so Firestore picks up latest email_verified claim.
       await user.reload();
       await user.getIdToken(true);
 
-      const runUniqueChecks = async () => {
+      // --- Uniqueness checks (skip on permission error, never block) ---
+      let uniqueChecksSkipped = false;
+      try {
         const usersRef = collection(db, 'users');
         const [usernameSnap, phoneSnap] = await Promise.all([
           getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
           getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
         ]);
-
-        const usernameTaken = usernameSnap.docs.some((d) => d.id !== user.uid);
-        if (usernameTaken) {
-          throw new Error('USERNAME_TAKEN');
-        }
-
-        const phoneTaken = phoneSnap.docs.some((d) => d.id !== user.uid);
-        if (phoneTaken) {
-          throw new Error('PHONE_TAKEN');
-        }
-      };
-
-      let uniqueChecksSkipped = false;
-
-      try {
-        await runUniqueChecks();
-      } catch (error: any) {
-        if (error?.message === 'USERNAME_TAKEN') {
+        if (usernameSnap.docs.some(d => d.id !== user.uid)) {
           toast.error('Username is already taken. Please choose another one.');
           return;
         }
-
-        if (error?.message === 'PHONE_TAKEN') {
+        if (phoneSnap.docs.some(d => d.id !== user.uid)) {
           toast.error('Phone number is already used by another account.');
           return;
         }
-
-        if (error?.code === 'permission-denied') {
-          // Claims may still be stale for a short time right after email verification.
-          await user.reload();
-          await user.getIdToken(true);
-          try {
-            await runUniqueChecks();
-          } catch (retryError: any) {
-            if (retryError?.code === 'permission-denied') {
-              // Do not block onboarding completion if uniqueness checks are temporarily unavailable.
-              uniqueChecksSkipped = true;
-            } else {
-              throw retryError;
-            }
-          }
-        } else {
-          throw error;
-        }
+      } catch (checkErr: any) {
+        console.warn('[Onboarding] Uniqueness check skipped:', checkErr?.code);
+        uniqueChecksSkipped = true;
       }
 
-      const saveProfile = async () => {
-        await setDoc(doc(db, 'users', user.uid), {
-          ...formData,
-          usernameLower,
-          phoneNormalized,
-          onboarded: true,
-        }, { merge: true });
+      // --- Write profile to Firestore ---
+      const profilePayload = {
+        ...formData,
+        usernameLower,
+        phoneNormalized,
+        onboarded: true,
+        updatedAt: new Date().toISOString(),
       };
 
-      try {
-        await saveProfile();
-      } catch (writeError: any) {
-        if (writeError?.code === 'permission-denied') {
-          await user.reload();
-          await user.getIdToken(true);
+      const userRef = doc(db, 'users', user.uid);
+      let writeDone = false;
 
+      // Try updateDoc first (doc exists from Signup — clearest match for 'update' rule).
+      try {
+        await updateDoc(userRef, profilePayload);
+        writeDone = true;
+        console.log('[Onboarding] ✓ Profile saved with updateDoc');
+      } catch (err1: any) {
+        console.error('[Onboarding] updateDoc failed:', err1?.code, err1?.message);
+
+        if (err1?.code === 'not-found') {
+          // Signup doc never persisted — create it now.
           try {
-            await saveProfile();
-          } catch (retryWriteError: any) {
-            if (retryWriteError?.code === 'permission-denied') {
-              throw new Error('ONBOARDING_WRITE_BLOCKED');
+            await setDoc(userRef, profilePayload, { merge: true });
+            writeDone = true;
+            console.log('[Onboarding] ✓ Profile created with setDoc (doc was missing)');
+          } catch (err2: any) {
+            console.error('[Onboarding] setDoc (create) failed:', err2?.code, err2?.message);
+          }
+        } else if (err1?.code === 'permission-denied') {
+          // Retry with a fresh token.
+          console.log('[Onboarding] permission-denied — retrying with fresh token…');
+          await user.getIdToken(true);
+          try {
+            await updateDoc(userRef, profilePayload);
+            writeDone = true;
+            console.log('[Onboarding] ✓ Profile saved on retry (updateDoc)');
+          } catch (err3: any) {
+            console.error('[Onboarding] Retry updateDoc failed:', err3?.code, err3?.message);
+            // Final fallback: setDoc+merge.
+            try {
+              await setDoc(userRef, profilePayload, { merge: true });
+              writeDone = true;
+              console.log('[Onboarding] ✓ Profile saved via setDoc fallback');
+            } catch (err4: any) {
+              console.error('[Onboarding] All write attempts failed:', err4?.code, err4?.message);
             }
-            throw retryWriteError;
           }
         } else {
-          throw writeError;
+          // Other error (network, etc.)
+          console.error('[Onboarding] Unexpected write error:', err1);
         }
       }
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
+
+      if (!writeDone) {
+        toast.error('Could not save your profile. Please check your connection and try again.');
+        return;
       }
 
+      // --- Success ---
+      sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
       if (uniqueChecksSkipped) {
-        toast.success('Profile saved.');
-      }
-      toast.success('Profile completed! Welcome to UniVibe 🎉');
-      // Set local flag instead of calling navigate() directly.
-      // The useEffect above will trigger navigation immediately,
-      // preventing the ProtectedRoute from seeing stale isOnboarded=false.
-      setSaved(true);
-    } catch (error: any) {
-      console.error(error);
-      if (error?.message === 'ONBOARDING_WRITE_BLOCKED') {
-        toast.error('Unable to save onboarding due to Firestore permissions. Please deploy latest firestore rules, then try again.');
-      } else if (error?.code === 'permission-denied') {
-        toast.error('Permission denied. Please sign out, sign in again, and try once more.');
+        toast.success('Profile saved!');
       } else {
-        toast.error(error.message || 'Error saving profile');
+        toast.success('Profile complete! Welcome to UniVibe 🎉');
       }
+      setSaved(true); // useEffect will navigate to '/'
+
+    } catch (error: any) {
+      console.error('[Onboarding] Unexpected error in handleFinish:', error);
+      toast.error(error?.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

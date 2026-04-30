@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, onIdTokenChanged } from 'firebase/auth';
 import { auth, db, hasKeys } from '../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -82,6 +82,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(!!hasKeys);
 
+  // Track the UID of the user whose Firestore listener is currently active.
+  // onIdTokenChanged fires on EVERY token refresh (e.g. getIdToken(true)),
+  // not just on login/logout. Without this guard, each token refresh would
+  // tear down and rebuild the listener with loading=true, causing a full-screen
+  // spinner flash (the flicker the user sees after completing onboarding).
+  const activeUidRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!hasKeys || !auth) {
       setLoading(false);
@@ -95,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       }
+      // Tear down any existing listener before creating a new one.
       if (unsubscribeUserDoc) {
         unsubscribeUserDoc();
         unsubscribeUserDoc = null;
@@ -128,15 +136,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const unsubscribe = onIdTokenChanged(auth, (authUser) => {
+      const newUid = authUser?.uid ?? null;
+
+      // If this is just a token refresh for the SAME user (e.g. getIdToken(true)
+      // called during onboarding), do NOT reset loading or recreate the listener.
+      // Doing so caused the full-screen spinner to flash after onboarding finished.
+      if (newUid !== null && newUid === activeUidRef.current) {
+        // Still update the user object so emailVerified etc. stay fresh.
+        setUser(authUser);
+        return;
+      }
+
+      // UID changed — real login, logout, or account switch.
+      activeUidRef.current = newUid;
       setUser(authUser);
+
+      // Tear down the old listener whenever the user changes.
       if (unsubscribeUserDoc) {
         unsubscribeUserDoc();
         unsubscribeUserDoc = null;
       }
 
       if (authUser && db) {
-        // Always load userData from Firestore — let route guards handle access control.
-        // Do NOT null userData here based on eligibility checks; that caused onboarding loops.
         setLoading(true);
         subscribeToUserDoc(authUser.uid);
       } else {
