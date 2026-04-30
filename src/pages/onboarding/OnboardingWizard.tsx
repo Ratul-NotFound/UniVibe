@@ -119,8 +119,14 @@ const OnboardingWizard = () => {
       return;
     }
     if (!isBirthDateValid(formData.birthDate)) {
+      const birth = new Date(formData.birthDate);
+      const now = new Date();
       console.warn('[Onboarding] Validation failed: birthDate', formData.birthDate);
-      toast.error('Please enter a valid birth date (minimum age 16).');
+      if (birth > now) {
+        toast.error('Birth date cannot be in the future.');
+      } else {
+        toast.error('You must be at least 16 years old to join UniVibe.');
+      }
       setLoading(false);
       return;
     }
@@ -134,138 +140,69 @@ const OnboardingWizard = () => {
       console.log('[Onboarding] Token refreshed');
 
       // --- Uniqueness checks (skip for super-admin or on permission error) ---
-      let uniqueChecksSkipped = false;
-      const isSuperAdmin = user.email === 'univibediu@gmail.com';
+      const usernameLower = formData.username.trim().toLowerCase();
+      const phoneNormalized = formData.phone.replace(/\D/g, '');
       
-      if (isSuperAdmin) {
-        console.log('[Onboarding] Super-admin bypass: skipping uniqueness checks');
-        uniqueChecksSkipped = true;
-      } else {
-        try {
-          console.log('[Onboarding] Running uniqueness checks...');
-          const usersRef = collection(db, 'users');
-          const [usernameSnap, phoneSnap] = await Promise.all([
-            getDocs(query(usersRef, where('usernameLower', '==', usernameLower), limit(1))),
-            getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
-          ]);
-          console.log('[Onboarding] Uniqueness checks completed');
-          
-          if (usernameSnap.docs.some(d => d.id !== user.uid)) {
-            toast.error('Username is already taken. Please choose another one.');
-            setLoading(false);
-            return;
-          }
-          if (phoneSnap.docs.some(d => d.id !== user.uid)) {
-            toast.error('Phone number is already used by another account.');
-            setLoading(false);
-            return;
-          }
-        } catch (checkErr: any) {
-          console.warn('[Onboarding] Uniqueness check skipped:', checkErr?.code);
-          uniqueChecksSkipped = true;
+      console.log('[Onboarding] Finalizing for:', user.uid, usernameLower);
+
+      // --- 1. Uniqueness Checks ---
+      let uniqueChecksSkipped = false;
+      try {
+        const usernameSnap = await getDocs(query(
+          collection(db, 'users'),
+          where('usernameLower', '==', usernameLower),
+          limit(1)
+        ));
+        
+        if (usernameSnap.docs.some(d => d.id !== user.uid)) {
+          toast.error('Username is already taken.', { id: 'onboarding-save' });
+          setLoading(false);
+          return;
         }
+      } catch (err) {
+        console.warn('[Onboarding] Uniqueness check skipped', err);
+        uniqueChecksSkipped = true;
       }
 
-      // --- Write profile to Firestore ---
-      console.log('[Onboarding] Preparing profile payload...');
+      // --- 2. Write Data ---
       const profilePayload = {
         ...formData,
+        username: formData.username.trim(),
         usernameLower,
+        phone: formData.phone.trim(),
         phoneNormalized,
         onboarded: true,
         updatedAt: new Date().toISOString(),
       };
 
-      console.log('[Onboarding] Saving profile to Firestore...', profilePayload);
       const userRef = doc(db, 'users', user.uid);
-      let writeDone = false;
-
-      // Try updateDoc first (doc exists from Signup — clearest match for 'update' rule).
-      try {
-        await updateDoc(userRef, profilePayload);
-        writeDone = true;
-        console.log('[Onboarding] ✓ Profile saved with updateDoc');
-      } catch (err1: any) {
-        console.error('[Onboarding] updateDoc failed:', err1?.code, err1?.message);
-
-        if (err1?.code === 'not-found') {
-          // Signup doc never persisted — create it now.
-          try {
-            await setDoc(userRef, profilePayload, { merge: true });
-            writeDone = true;
-            console.log('[Onboarding] ✓ Profile created with setDoc (doc was missing)');
-          } catch (err2: any) {
-            console.error('[Onboarding] setDoc (create) failed:', err2?.code, err2?.message);
-          }
-        } else if (err1?.code === 'permission-denied') {
-          // Retry with a fresh token.
-          console.log('[Onboarding] permission-denied — retrying with fresh token…');
-          await user.getIdToken(true);
-          try {
-            await updateDoc(userRef, profilePayload);
-            writeDone = true;
-            console.log('[Onboarding] ✓ Profile saved on retry (updateDoc)');
-          } catch (err3: any) {
-            console.error('[Onboarding] Retry updateDoc failed:', err3?.code, err3?.message);
-            // Final fallback: setDoc+merge.
-            try {
-              await setDoc(userRef, profilePayload, { merge: true });
-              writeDone = true;
-              console.log('[Onboarding] ✓ Profile saved via setDoc fallback');
-            } catch (err4: any) {
-              console.error('[Onboarding] All write attempts failed:', err4?.code, err4?.message);
-            }
-          }
-        } else {
-          // Other error (network, etc.)
-          console.error('[Onboarding] Unexpected write error:', err1);
-        }
-      }
-
-      if (!writeDone) {
-        toast.error('Could not save your profile. Please check your connection and try again.');
-        return;
-      }
-
-      // --- VERIFY THE WRITE ---
-      console.log('[Onboarding] Verifying write persistence...');
-      try {
-        const verifySnap = await getDoc(userRef);
-        if (verifySnap.exists() && verifySnap.data().onboarded === true) {
-          console.log('[Onboarding] ✓ Write verified in Firestore');
-        } else {
-          console.warn('[Onboarding] ⚠ Verification failed! Firestore does not reflect the change yet.');
-          // Even if verification fails (due to latency), we have writeDone=true from the success call.
-          // We will rely on sessionStorage to get them through the ProtectedRoute.
-        }
-      } catch (vErr) {
-        console.error('[Onboarding] Verification read failed:', vErr);
-      }
-
-      // --- Success ---
-      // 1. Set sessionStorage for immediate redirect bypass
-      sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
-      // 2. Set a temporary flag in localStorage as a secondary backup
-      localStorage.setItem(`univibe_onboarded_backup_${user.uid}`, 'true');
       
-      if (uniqueChecksSkipped) {
-        toast.success('Profile saved!');
-      } else {
-        toast.success('Profile complete! Welcome to UniVibe 🎉');
+      // We use setDoc with merge: true for maximum compatibility (works for both update and create)
+      await setDoc(userRef, profilePayload, { merge: true });
+      console.log('[Onboarding] ✓ Data written to Firestore');
+
+      // --- 3. Success Flags ---
+      // Set these BEFORE the redirect to ensure ProtectedRoute doesn't bounce the user back
+      sessionStorage.setItem(`onboarding-complete:${user.uid}`, '1');
+      localStorage.setItem(`univibe_onboarded_backup_${user.uid}`, 'true');
+
+      toast.success('Profile complete! Welcome to UniVibe 🎉', { id: 'onboarding-save' });
+
+      // Trigger a token refresh and small delay
+      try {
+        await user.getIdToken(true);
+      } catch (e) {
+        console.warn('[Onboarding] Token refresh failed, proceeding anyway');
       }
 
-      // 3. Trigger a manual state refresh in the AuthContext by reloading the user token
-      // This forces the Firestore listener to wake up if it's idling.
-      await user.getIdToken(true);
-
-      // 4. Wait a beat for the local cache to settle
       setTimeout(() => {
         setSaved(true);
-      }, 500);
+        setLoading(false);
+      }, 800);
 
     } catch (error: any) {
-      console.error('[Onboarding] Unexpected error in handleFinish:', error);
-      toast.error(error?.message || 'Something went wrong. Please try again.');
+      console.error('[Onboarding] CRITICAL ERROR:', error);
+      toast.error(error?.message || 'Failed to save profile. Try again.', { id: 'onboarding-save' });
     } finally {
       setLoading(false);
     }
@@ -489,7 +426,26 @@ const OnboardingWizard = () => {
 
                 <div className="mt-8 flex justify-end">
                   <Button 
-                    onClick={nextStep} 
+                    onClick={() => {
+                      if (!/^[a-z0-9._]{3,20}$/.test(normalizeUsername(formData.username))) {
+                        toast.error('Username must be 3-20 chars: letters, numbers, dot or underscore only.');
+                        return;
+                      }
+                      if (normalizePhone(formData.phone).length < 10) {
+                        toast.error('Please enter a valid phone number.');
+                        return;
+                      }
+                      if (!isBirthDateValid(formData.birthDate)) {
+                        const birth = new Date(formData.birthDate);
+                        if (birth > new Date()) {
+                          toast.error('Birth date cannot be in the future.');
+                        } else {
+                          toast.error('You must be at least 16 years old.');
+                        }
+                        return;
+                      }
+                      nextStep();
+                    }}
                     disabled={
                       !formData.username.trim()
                       || !formData.phone.trim()
