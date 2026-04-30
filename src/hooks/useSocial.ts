@@ -17,6 +17,7 @@ import { db, rtdb } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { calculateMatchScore } from '@/lib/matchAlgorithm';
 import { createAppNotification } from '@/lib/notifications';
+import { postCircleActivity } from './useCircleActivity';
 import { toast } from 'react-hot-toast';
 
 const getMatchDocId = (uidA: string, uidB: string) => [uidA, uidB].sort().join('_');
