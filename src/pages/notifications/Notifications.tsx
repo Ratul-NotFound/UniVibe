@@ -31,9 +31,14 @@ const Notifications = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Optional: Mark as read when entering the page?
-    // markAllAsRead();
-  }, []);
+    // Auto-mark all as read after a short delay when the user opens this page
+    if (notifications.length > 0) {
+      const timer = setTimeout(() => {
+        markAllAsRead();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [notifications.length]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -125,7 +130,7 @@ const Notifications = () => {
                           {formatTimeAgo(notif.receivedAt)}
                         </div>
                       </div>
-                      <p className="text-xs text-zinc-500 font-medium leading-relaxed line-clamp-2">
+                      <p className="text-xs text-zinc-500 font-medium leading-relaxed line-clamp-2 break-words">
                         {notif.body}
                       </p>
                     </div>
