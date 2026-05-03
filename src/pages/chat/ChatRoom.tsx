@@ -142,7 +142,7 @@ const ChatRoom = () => {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !activeChatId) return;
     const content = inputText;
     sendMessage(content);
 

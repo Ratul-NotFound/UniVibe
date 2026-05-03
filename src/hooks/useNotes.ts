@@ -86,17 +86,23 @@ export const useNotes = () => {
   }, [user, matches]);
 
   const postNote = async (text: string) => {
-    if (!user) return;
+    if (!user) return { success: false };
     const cleanText = text.trim();
-    if (!cleanText) return;
+    if (!cleanText) return { success: false };
 
-    await setDoc(doc(db, 'notes', user.uid), {
-      ownerUid: user.uid,
-      text: cleanText,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'notes', user.uid), {
+        ownerUid: user.uid,
+        text: cleanText,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+      }, { merge: true });
+      return { success: true };
+    } catch (err) {
+      console.error('Note post failed:', err);
+      return { success: false };
+    }
   };
 
   const deleteNote = async () => {

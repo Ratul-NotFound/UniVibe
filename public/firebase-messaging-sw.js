@@ -16,10 +16,12 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'UniVibe Alert';
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/univibe-logo.png', // UniVibe flat logo
+    body: payload.notification?.body || payload.data?.body || 'Check your frequency for updates.',
+    icon: '/univibe-logo.png',
+    badge: '/favicon.svg',
+    tag: payload.data?.chatId || 'univibe-notification',
     data: payload.data
   };
 

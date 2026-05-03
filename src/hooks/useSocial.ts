@@ -11,6 +11,8 @@ import {
   deleteDoc,
   serverTimestamp,
   collection,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { ref, set } from 'firebase/database';
 import { db, rtdb } from '@/lib/firebase';
@@ -56,6 +58,9 @@ export const useSocial = () => {
       });
 
       // 2. Create Match and Chat
+      // Note: Firestore rules only allow a user to update their own document.
+      // The 'matches' collection is the authoritative source of truth for friendship.
+      // We update only the current user's (toUid) own friends list here.
       await Promise.all([
         setDoc(
           doc(db, 'matches', matchDocId),
@@ -74,6 +79,10 @@ export const useSocial = () => {
             [toUid]: true,
           },
           createdAt: Date.now(),
+        }),
+        // Only update current user's own doc (toUid == user.uid)
+        updateDoc(doc(db, 'users', toUid), {
+          friends: arrayUnion(fromUid)
         }),
       ]);
 
@@ -237,10 +246,14 @@ export const useSocial = () => {
       const matchDocId = getMatchDocId(user.uid, targetUid);
       
       // Delete the match and BOTH directions of requests to fully reset state
+      // Also remove from current user's own friends list
       await Promise.allSettled([
         deleteDoc(doc(db, 'matches', matchDocId)),
         deleteDoc(doc(db, 'requests', getRequestDocId(user.uid, targetUid))),
-        deleteDoc(doc(db, 'requests', getRequestDocId(targetUid, user.uid)))
+        deleteDoc(doc(db, 'requests', getRequestDocId(targetUid, user.uid))),
+        updateDoc(doc(db, 'users', user.uid), {
+          friends: arrayRemove(targetUid)
+        }),
       ]);
 
       toast.success('Connection removed');
