@@ -28,7 +28,7 @@ import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { useNotifications } from '@/hooks/useNotifications';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import SplashScreen from '@/components/ui/SplashScreen';
-import PwaInstallPrompt from '@/components/layout/PwaInstallPrompt';
+import PwaInstallPrompt, { isPwaInstalled, requestPwaInstallPrompt } from '@/components/layout/PwaInstallPrompt';
 
 // Placeholder Pages
 const Chat = () => <div className="p-8 text-center pt-20">Chat rooms coming soon...</div>;
@@ -101,12 +101,10 @@ function App() {
       if (!alreadyShown) {
         // Short delay to let the app settle
         const timer = setTimeout(() => {
-          import('@/components/layout/PwaInstallPrompt').then(module => {
-            if (!module.isPwaInstalled()) {
-              module.requestPwaInstallPrompt();
-              sessionStorage.setItem(sessionKey, 'true');
-            }
-          });
+          if (!isPwaInstalled()) {
+            requestPwaInstallPrompt();
+            sessionStorage.setItem(sessionKey, 'true');
+          }
         }, 3000);
         return () => clearTimeout(timer);
       }
